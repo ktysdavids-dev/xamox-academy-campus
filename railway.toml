@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 buildCommand = "python manage.py collectstatic --noinput"
 
 [deploy]
-startCommand = "python manage.py migrate --noinput && python manage.py seed_academy && python manage.py bootstrap_admin && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
+startCommand = "python manage.py migrate --noinput && python manage.py seed_academy && python manage.py bootstrap_admin && python manage.py bootstrap_demo_student && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT"
 healthcheckPath = "/health/"
 healthcheckTimeout = 180
 restartPolicyType = "ON_FAILURE"

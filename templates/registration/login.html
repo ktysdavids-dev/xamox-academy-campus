@@ -1,1 +1,37 @@
-{% extends "base.html" %}{% block title %}Acceso · Xamox Academy{% endblock %}{% block content %}<section class="auth-shell"><div class="auth-card"><div class="eyebrow">CAMPUS PRIVADO</div><h1>Continúa tu formación</h1><p>Accede a tus clases, grabaciones, recursos y progreso.</p><form method="post" class="form-grid">{% csrf_token %}<label>Email o usuario{{ form.username }}</label><label>Contraseña{{ form.password }}</label>{% if form.errors %}<div class="error-box">Credenciales no válidas.</div>{% endif %}<button class="btn primary" type="submit">Entrar al Campus →</button></form></div></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Acceso · Xamox Academy{% endblock %}
+{% block content %}
+<section class="auth-shell auth-shell-premium">
+  <div class="auth-visual">
+    <div class="auth-visual-inner">
+      <span class="eyebrow">XAMOX ACADEMY</span>
+      <h1>Tu formación, organizada en un solo lugar.</h1>
+      <p>Accede a las grabaciones, PDFs, recursos y progreso del Programa Intensivo de IA & Marketing Digital.</p>
+      <div class="auth-points">
+        <span><b>48 h</b><small>formación en directo</small></span>
+        <span><b>4</b><small>módulos intensivos</small></span>
+        <span><b>8</b><small>semanas</small></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-card auth-card-premium">
+    <div class="auth-logo-mobile">
+      <img src="https://cdn.prod.website-files.com/68b944d4a42f90c19d14a5da/6a9af33ff4a396bb973294ed_ChatGPT%20Image%204%20sept%202026%2C%2016_59_29.webp" alt="Xamox Academy">
+    </div>
+    <div class="eyebrow">CAMPUS PRIVADO</div>
+    <h2>Bienvenido de nuevo</h2>
+    <p>Introduce tu email o usuario y tu contraseña.</p>
+
+    <form method="post" class="form-grid auth-form">
+      {% csrf_token %}
+      <label>Email o usuario{{ form.username }}</label>
+      <label>Contraseña{{ form.password }}</label>
+      {% if form.errors %}<div class="error-box">No hemos podido validar esos datos. Revisa el email/usuario y la contraseña.</div>{% endif %}
+      <button class="btn primary btn-wide" type="submit">Entrar al Campus <span>→</span></button>
+    </form>
+
+    <div class="auth-help">¿Problemas para acceder? <a href="mailto:info@ktysdavids.com">info@ktysdavids.com</a></div>
+  </div>
+</section>
+{% endblock %}

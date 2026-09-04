@@ -1,0 +1,16 @@
+Hola {{ user.first_name|default:user.email }},
+
+Tu compra de Xamox Academy ha sido confirmada y tu plaza ya está activa.
+
+Crea tu contraseña y accede al Campus desde este enlace:
+{{ activation_url }}
+
+Después podrás entrar siempre desde:
+{{ login_url }}
+
+En el Campus tendrás las grabaciones, PDFs, recursos y tu progreso del Programa Intensivo de IA & Marketing Digital.
+
+Si necesitas ayuda, escribe a {{ support_email }}.
+
+Xamox Academy
+Ktys & Davids Productions

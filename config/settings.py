@@ -42,9 +42,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 if IS_RAILWAY and not DATABASE_URL:
-    raise ImproperlyConfigured(
-        "DATABASE_URL es obligatoria en Railway. Añade en el servicio Django una Reference Variable hacia PostgreSQL.DATABASE_URL."
-    )
+    raise ImproperlyConfigured("DATABASE_URL es obligatoria en Railway. Añade una Reference Variable hacia PostgreSQL.DATABASE_URL.")
 
 if DATABASE_URL:
     parsed = urlparse(DATABASE_URL)
@@ -61,6 +59,7 @@ if DATABASE_URL:
 else:
     DATABASES = {"default": {"ENGINE":"django.db.backends.sqlite3","NAME":BASE_DIR / "db.sqlite3"}}
 
+AUTHENTICATION_BACKENDS = ["core.auth_backend.EmailOrUsernameBackend"]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME":"django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME":"django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -88,10 +87,23 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "0") == "1"
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+APP_URL = os.getenv("APP_URL", "http://127.0.0.1:8000").rstrip("/")
+SUPPORT_EMAIL = os.getenv("SUPPORT_EMAIL", "info@ktysdavids.com")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "").strip()
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
+STRIPE_PAYMENT_LINK_ID = os.getenv("STRIPE_PAYMENT_LINK_ID", "").strip()
 STRIPE_PAYMENT_LINK = os.getenv("STRIPE_PAYMENT_LINK", "https://buy.stripe.com/7sYeVc5SBgsw7XNcTc6Na01")
-APP_URL = os.getenv("APP_URL", "http://127.0.0.1:8000")
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "1") == "1"
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "0") == "1"
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Xamox Academy <info@ktysdavids.com>")
 
 LOGGING = {
     "version": 1,
@@ -100,5 +112,6 @@ LOGGING = {
     "loggers": {
         "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
         "django.security": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "core": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }

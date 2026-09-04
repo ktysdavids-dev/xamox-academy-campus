@@ -1,2 +1,35 @@
 {% load static %}
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{% block title %}Xamox Academy{% endblock %}</title><link rel="stylesheet" href="{% static 'css/app.css' %}"></head><body><header class="topbar"><a class="brand" href="{% url 'dashboard' %}"><span class="mark">XA</span><span><strong>Xamox Academy</strong><small>Campus</small></span></a>{% if user.is_authenticated %}<div class="top-actions"><span>{{ user.get_full_name|default:user.email }}</span>{% if user.is_staff %}<a href="{% url 'admin_dashboard' %}">Admin</a>{% endif %}<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button>Salir</button></form></div>{% endif %}</header>{% if messages %}<div class="flash-wrap">{% for message in messages %}<div class="flash">{{ message }}</div>{% endfor %}</div>{% endif %}<main>{% block content %}{% endblock %}</main></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#071426">
+  <title>{% block title %}Xamox Academy{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}">
+      <span class="brand-logo-wrap">
+        <img class="brand-logo" src="https://cdn.prod.website-files.com/68b944d4a42f90c19d14a5da/6a9af33ff4a396bb973294ed_ChatGPT%20Image%204%20sept%202026%2C%2016_59_29.webp" alt="Xamox Academy">
+      </span>
+      <span class="brand-copy"><strong>Xamox Academy</strong><small>Campus privado</small></span>
+    </a>
+
+    {% if user.is_authenticated %}
+      <div class="top-actions">
+        <span class="user-pill">{{ user.get_full_name|default:user.email }}</span>
+        {% if user.is_staff %}<a class="top-link" href="{% url 'admin_dashboard' %}">Panel</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="top-link" type="submit">Salir</button></form>
+      </div>
+    {% endif %}
+  </header>
+
+  {% if messages %}
+    <div class="flash-wrap">{% for message in messages %}<div class="flash">{{ message }}</div>{% endfor %}</div>
+  {% endif %}
+
+  <main>{% block content %}{% endblock %}</main>
+</body>
+</html>

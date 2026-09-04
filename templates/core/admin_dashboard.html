@@ -1,1 +1,54 @@
-{% extends "base.html" %}{% block content %}<section class="page-shell"><div class="admin-head"><div><div class="eyebrow">ADMINISTRACIÓN</div><h1>Control del Campus</h1><p>Alumnos, matrículas, compras y contenido.</p></div><div class="admin-actions"><a class="btn primary" href="{% url 'admin_student_create' %}">+ Nuevo alumno</a><a class="btn secondary" href="/django-admin/core/lesson/add/">+ Publicar clase</a></div></div><div class="stats-grid"><div><span>Alumnos activos</span><strong>{{ stats.students }}</strong></div><div><span>Matrículas</span><strong>{{ stats.enrollments }}</strong></div><div><span>Compras pagadas</span><strong>{{ stats.purchases }}</strong></div><div><span>Clases publicadas</span><strong>{{ stats.lessons }}</strong></div></div><div class="admin-grid"><section class="panel"><h2>Últimos alumnos</h2>{% for student in students %}<a class="data-row" href="{% url 'admin_student_detail' student.id %}"><span><strong>{{ student.get_full_name|default:student.email }}</strong><small>{{ student.email }}</small></span><b>{{ student.active_enrollments }} cursos</b></a>{% empty %}<p>Sin alumnos todavía.</p>{% endfor %}</section><section class="panel"><h2>Últimas compras</h2>{% for purchase in purchases %}<div class="data-row"><span><strong>{{ purchase.buyer_email }}</strong><small>{{ purchase.created_at|date:'d/m/Y H:i' }}</small></span><b>{{ purchase.get_status_display }}</b></div>{% empty %}<p>Sin compras todavía.</p>{% endfor %}</section></div></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Administración · Xamox Academy{% endblock %}
+{% block content %}
+<section class="page-shell admin-shell">
+  <div class="admin-head premium-admin-head">
+    <div>
+      <div class="eyebrow">ADMINISTRACIÓN</div>
+      <h1>Control total del Campus</h1>
+      <p>Alumnos, matrículas, compras, clases y contenido desde un único panel.</p>
+    </div>
+    <div class="admin-actions">
+      <a class="btn primary" href="{% url 'admin_student_create' %}">+ Nuevo alumno</a>
+      <a class="btn secondary" href="/django-admin/core/lesson/add/">+ Publicar clase</a>
+      <a class="btn secondary" href="/django-admin/">Django Admin</a>
+    </div>
+  </div>
+
+  <div class="stats-grid premium-stats">
+    <div><span>Alumnos activos</span><strong>{{ stats.students }}</strong><small>con acceso vigente</small></div>
+    <div><span>Matrículas</span><strong>{{ stats.enrollments }}</strong><small>activas ahora</small></div>
+    <div><span>Compras pagadas</span><strong>{{ stats.purchases }}</strong><small>registradas por Stripe</small></div>
+    <div><span>Clases publicadas</span><strong>{{ stats.lessons }}</strong><small>visibles para alumnos</small></div>
+  </div>
+
+  <div class="admin-grid premium-admin-grid">
+    <section class="panel">
+      <div class="panel-head"><div><span class="eyebrow">ALUMNOS</span><h2>Últimos accesos</h2></div><a href="{% url 'admin_students' %}">Ver todos →</a></div>
+      {% for student in students %}
+        <a class="data-row" href="{% url 'admin_student_detail' student.id %}">
+          <span><strong>{{ student.get_full_name|default:student.email }}</strong><small>{{ student.email }}</small></span>
+          <b>{{ student.active_enrollments }} curso{{ student.active_enrollments|pluralize }}</b>
+        </a>
+      {% empty %}<p class="panel-empty">Aún no hay alumnos.</p>{% endfor %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><span class="eyebrow">STRIPE</span><h2>Últimas compras</h2></div></div>
+      {% for purchase in purchases %}
+        <div class="data-row">
+          <span><strong>{{ purchase.buyer_name|default:purchase.buyer_email }}</strong><small>{{ purchase.buyer_email }} · {{ purchase.created_at|date:'d/m/Y H:i' }}</small></span>
+          <b class="purchase-status">{{ purchase.get_status_display }}</b>
+        </div>
+      {% empty %}<p class="panel-empty">Aún no hay compras registradas.</p>{% endfor %}
+    </section>
+  </div>
+
+  <div class="admin-shortcuts">
+    <a href="/django-admin/core/course/"><span>01</span><strong>Cursos</strong><small>Programa y portada</small></a>
+    <a href="/django-admin/core/module/"><span>02</span><strong>Módulos</strong><small>Estructura del curso</small></a>
+    <a href="/django-admin/core/lesson/"><span>03</span><strong>Clases</strong><small>Vídeos y publicaciones</small></a>
+    <a href="/django-admin/core/resource/"><span>04</span><strong>Recursos</strong><small>PDF, plantillas y enlaces</small></a>
+  </div>
+</section>
+{% endblock %}
