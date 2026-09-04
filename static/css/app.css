@@ -10,5 +10,6 @@
 .seat-form input{flex:1;min-width:200px;padding:12px 14px;border-radius:8px;border:1px solid #24354c;background:#08182b;color:#fff;}
 .plan-choice{border:1px solid #24354c;border-radius:12px;padding:14px 16px;margin:6px 0;}
 .plan-choice legend{padding:0 6px;color:#d7b15a;font-size:12px;letter-spacing:1px;}
-.radio-row{display:flex;align-items:center;gap:10px;padding:6px 0;color:#e7edf5;}
+.plan-choice .radio-row{display:flex;align-items:center;gap:10px;padding:9px 0;color:#e7edf5;font-size:11px;}
+.plan-choice input[type=radio]{width:18px;height:18px;min-height:18px;padding:0;margin:0;flex:none;accent-color:#d7b15a;}
 #guest-fields{margin-top:6px;}
