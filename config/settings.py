@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
+from urllib.parse import urlparse
+
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -8,6 +11,7 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
+IS_RAILWAY = bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RAILWAY_PROJECT_ID"))
 
 railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
 allowed_hosts = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
@@ -36,9 +40,24 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [{"BACKEND":"django.template.backends.django.DjangoTemplates","DIRS":[BASE_DIR / "templates"],"APP_DIRS":True,"OPTIONS":{"context_processors":["django.template.context_processors.request","django.contrib.auth.context_processors.auth","django.contrib.messages.context_processors.messages"]}}]
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+if IS_RAILWAY and not DATABASE_URL:
+    raise ImproperlyConfigured(
+        "DATABASE_URL es obligatoria en Railway. Añade en el servicio Django una Reference Variable hacia PostgreSQL.DATABASE_URL."
+    )
+
 if DATABASE_URL:
-    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=(not DEBUG and not DATABASE_URL.startswith("sqlite")))}
+    parsed = urlparse(DATABASE_URL)
+    host = (parsed.hostname or "").lower()
+    is_private_railway = host.endswith(".railway.internal") or host in {"postgres", "postgresql"}
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+            ssl_require=(not DEBUG and not is_private_railway),
+        )
+    }
 else:
     DATABASES = {"default": {"ENGINE":"django.db.backends.sqlite3","NAME":BASE_DIR / "db.sqlite3"}}
 
@@ -73,3 +92,13 @@ STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_PAYMENT_LINK = os.getenv("STRIPE_PAYMENT_LINK", "https://buy.stripe.com/7sYeVc5SBgsw7XNcTc6Na01")
 APP_URL = os.getenv("APP_URL", "http://127.0.0.1:8000")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+        "django.security": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
+}
