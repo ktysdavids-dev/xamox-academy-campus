@@ -8,8 +8,19 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
-ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
-CSRF_TRUSTED_ORIGINS = [u.strip() for u in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if u.strip()]
+
+railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
+allowed_hosts = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
+if railway_domain and railway_domain not in allowed_hosts:
+    allowed_hosts.append(railway_domain)
+ALLOWED_HOSTS = allowed_hosts
+
+trusted_origins = [u.strip() for u in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if u.strip()]
+if railway_domain:
+    railway_origin = f"https://{railway_domain}"
+    if railway_origin not in trusted_origins:
+        trusted_origins.append(railway_origin)
+CSRF_TRUSTED_ORIGINS = trusted_origins
 
 INSTALLED_APPS = [
     "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
@@ -48,8 +59,8 @@ STORAGES = {
     "default": {"BACKEND":"django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND":"whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
+MEDIA_ROOT = Path(os.getenv("MEDIA_ROOT", str(BASE_DIR / "media")))
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "login"
