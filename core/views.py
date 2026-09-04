@@ -226,6 +226,14 @@ def health(request):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
-        return JsonResponse({"status": "ok", "database": "ok"})
+        tables = set(connection.introspection.table_names())
+        required = {"auth_user", "django_session", "django_migrations", "core_course"}
+        missing = sorted(required - tables)
+        if missing:
+            return JsonResponse(
+                {"status": "error", "database": "ok", "schema": "incomplete", "missing_tables": missing},
+                status=503,
+            )
+        return JsonResponse({"status": "ok", "database": "ok", "schema": "ok"})
     except Exception:
-        return JsonResponse({"status": "error", "database": "unavailable"}, status=503)
+        return JsonResponse({"status": "error", "database": "unavailable", "schema": "unknown"}, status=503)
