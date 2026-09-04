@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Activar acceso · Xamox Academy{% endblock %}
+{% block content %}
+<section class="auth-shell">
+  <div class="auth-card auth-card-premium activation-card">
+    <div class="auth-logo-mobile always-visible">
+      <img src="https://cdn.prod.website-files.com/68b944d4a42f90c19d14a5da/6a9af33ff4a396bb973294ed_ChatGPT%20Image%204%20sept%202026%2C%2016_59_29.webp" alt="Xamox Academy">
+    </div>
+    {% if valid %}
+      <div class="eyebrow">PRIMER ACCESO</div>
+      <h1>Crea tu contraseña</h1>
+      <p>Tu plaza ya está activa. Elige una contraseña segura para entrar al Campus.</p>
+      <form method="post" class="form-grid auth-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn primary btn-wide" type="submit">Activar mi cuenta →</button>
+      </form>
+    {% else %}
+      <div class="eyebrow">ENLACE NO VÁLIDO</div>
+      <h1>Este enlace ya no se puede utilizar</h1>
+      <p>Puede haber caducado o haber sido utilizado previamente. Escríbenos y te generamos un nuevo acceso.</p>
+      <a class="btn secondary btn-wide" href="mailto:info@ktysdavids.com">Contactar con soporte</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

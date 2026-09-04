@@ -7,6 +7,7 @@ urlpatterns = [
     path("health/", views.health, name="health"),
     path("login/", auth_views.LoginView.as_view(template_name="registration/login.html"), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("activar/<uidb64>/<token>/", views.activate_account, name="activate_account"),
     path("campus/", views.dashboard, name="dashboard"),
     path("campus/curso/<slug:slug>/", views.course_detail, name="course_detail"),
     path("campus/clase/<int:lesson_id>/", views.lesson_detail, name="lesson_detail"),

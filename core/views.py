@@ -1,21 +1,31 @@
+import logging
 from pathlib import Path
+
 import stripe
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.models import User
-from django.db import connection
+from django.contrib.auth.tokens import default_token_generator
+from django.db import connection, transaction
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.static import serve
+
 from .decorators import staff_required
 from .forms import StudentCreateForm
-from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Purchase, Resource, SeatInvitation
-from .services import course_progress
+from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Purchase, Resource
+from .services import course_progress, provision_buyer_access, send_purchase_access_email
+
+logger = logging.getLogger("core")
 
 
 def home(request):
@@ -58,9 +68,7 @@ def course_detail(request, slug):
 @login_required
 def lesson_detail(request, lesson_id):
     lesson = get_object_or_404(
-        Lesson.objects.select_related("module", "module__course"),
-        id=lesson_id,
-        published=True,
+        Lesson.objects.select_related("module", "module__course"), id=lesson_id, published=True
     )
     get_object_or_404(Enrollment, user=request.user, course=lesson.module.course, status="active")
     if lesson.release_at and lesson.release_at > timezone.now():
@@ -92,7 +100,6 @@ def complete_lesson(request, lesson_id):
 
 @login_required
 def protected_media(request, path):
-    """Sirve vídeos y recursos solo a staff o alumnos matriculados en el curso correspondiente."""
     media_root = Path(settings.MEDIA_ROOT).resolve()
     requested_file = (media_root / path).resolve()
     if requested_file != media_root and media_root not in requested_file.parents:
@@ -182,6 +189,27 @@ def admin_enroll_student(request, user_id):
     return redirect("admin_student_detail", user_id=student.id)
 
 
+def activate_account(request, uidb64, token):
+    user = None
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid, is_active=True)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        pass
+
+    valid = bool(user and default_token_generator.check_token(user, token))
+    form = SetPasswordForm(user, request.POST or None) if valid else None
+
+    if valid and request.method == "POST" and form.is_valid():
+        form.save()
+        login(request, user, backend="core.auth_backend.EmailOrUsernameBackend")
+        ActivityLog.objects.create(user=user, action="account_activated")
+        messages.success(request, "Cuenta activada. Bienvenido a Xamox Academy.")
+        return redirect("dashboard")
+
+    return render(request, "registration/activate.html", {"form": form, "valid": valid})
+
+
 def buy_redirect(request):
     return redirect(settings.STRIPE_PAYMENT_LINK)
 
@@ -191,7 +219,10 @@ def stripe_webhook(request):
     if request.method != "POST":
         return HttpResponse(status=405)
     if not settings.STRIPE_WEBHOOK_SECRET:
-        return JsonResponse({"error": "Webhook no configurado"}, status=503)
+        return JsonResponse({"error": "STRIPE_WEBHOOK_SECRET no configurado"}, status=503)
+    if not settings.STRIPE_PAYMENT_LINK_ID:
+        return JsonResponse({"error": "STRIPE_PAYMENT_LINK_ID no configurado"}, status=503)
+
     try:
         event = stripe.Webhook.construct_event(
             request.body,
@@ -199,26 +230,57 @@ def stripe_webhook(request):
             settings.STRIPE_WEBHOOK_SECRET,
         )
     except Exception:
+        logger.exception("Firma Stripe inválida")
         return HttpResponse(status=400)
 
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        email = (session.get("customer_details") or {}).get("email") or session.get("customer_email") or ""
+    if event["type"] not in {"checkout.session.completed", "checkout.session.async_payment_succeeded"}:
+        return HttpResponse(status=200)
+
+    session = event["data"]["object"]
+    if session.get("payment_link") != settings.STRIPE_PAYMENT_LINK_ID:
+        return JsonResponse({"status": "ignored", "reason": "payment_link"}, status=200)
+    if session.get("payment_status") != "paid":
+        return JsonResponse({"status": "pending"}, status=200)
+
+    customer_details = session.get("customer_details") or {}
+    email = (customer_details.get("email") or session.get("customer_email") or "").strip().lower()
+    buyer_name = (customer_details.get("name") or "").strip()
+    if not email:
+        return JsonResponse({"error": "Stripe no devolvió email del comprador"}, status=400)
+
+    course = Course.objects.filter(slug="ia-marketing-digital", active=True).first()
+    if not course:
+        return JsonResponse({"error": "Curso Xamox Academy no encontrado"}, status=503)
+
+    with transaction.atomic():
         purchase, _ = Purchase.objects.update_or_create(
             stripe_session_id=session["id"],
             defaults={
                 "stripe_payment_intent": session.get("payment_intent") or "",
                 "buyer_email": email,
+                "buyer_name": buyer_name,
                 "amount_cents": session.get("amount_total") or 0,
                 "currency": session.get("currency") or "eur",
                 "status": "paid",
                 "seats": 2,
-                "course": Course.objects.filter(active=True).first(),
+                "course": course,
             },
         )
-        if email:
-            SeatInvitation.objects.get_or_create(purchase=purchase, email=email)
-    return HttpResponse(status=200)
+        user = provision_buyer_access(purchase, buyer_name=buyer_name)
+
+    already_sent = ActivityLog.objects.filter(
+        user=user,
+        action="access_email_sent",
+        metadata__purchase_id=purchase.id,
+    ).exists()
+    if not already_sent:
+        try:
+            send_purchase_access_email(user, purchase)
+        except Exception:
+            logger.exception("No se pudo enviar el email de acceso para purchase_id=%s", purchase.id)
+            return JsonResponse({"error": "Compra registrada; email pendiente"}, status=500)
+
+    return JsonResponse({"status": "ok", "purchase_id": purchase.id, "student_id": user.id}, status=200)
 
 
 def health(request):
@@ -236,4 +298,5 @@ def health(request):
             )
         return JsonResponse({"status": "ok", "database": "ok", "schema": "ok"})
     except Exception:
+        logger.exception("Healthcheck de base de datos fallido")
         return JsonResponse({"status": "error", "database": "unavailable", "schema": "unknown"}, status=503)

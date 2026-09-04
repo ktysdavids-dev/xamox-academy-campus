@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | Xamox Academy Admin{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+:root{--primary:#0b1c31;--secondary:#d7b15a;--accent:#efcf7c;--header-color:#fff;--header-branding-color:#fff;--header-bg:#071426;--header-link-color:#d7b15a;--breadcrumbs-bg:#0b1c31;--breadcrumbs-link-fg:#efcf7c;--body-bg:#f5f6f8;--body-fg:#172033;--link-fg:#8a6a2a;--button-bg:#d7b15a;--button-hover-bg:#efcf7c}
+#header{padding:10px 24px;background:#071426;border-bottom:1px solid rgba(215,177,90,.24)}
+#branding h1{margin:0}
+.xa-admin-brand{display:flex;align-items:center;gap:12px;text-decoration:none!important;color:#fff!important}
+.xa-admin-brand img{width:46px;height:46px;object-fit:cover;border-radius:9px;border:1px solid rgba(215,177,90,.28)}
+.xa-admin-brand span{display:flex;flex-direction:column;line-height:1.15}
+.xa-admin-brand strong{font-size:16px;letter-spacing:-.01em}.xa-admin-brand small{margin-top:4px;color:#b99d5c;font-size:9px;text-transform:uppercase;letter-spacing:1.1px}
+#user-tools{font-size:11px}.module h2,.module caption,.inline-group h2{background:#0b1c31!important}.button,input[type=submit],input[type=button],.submit-row input{background:#d7b15a!important;color:#101722!important;border-radius:6px!important}.button:hover,input[type=submit]:hover{background:#efcf7c!important}.dashboard #content{max-width:1200px}.object-tools a{background:#0b1c31!important}
+</style>
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a class="xa-admin-brand" href="{% url 'admin:index' %}">
+    <img src="https://cdn.prod.website-files.com/68b944d4a42f90c19d14a5da/6a9af33ff4a396bb973294ed_ChatGPT%20Image%204%20sept%202026%2C%2016_59_29.webp" alt="Xamox Academy">
+    <span><strong>Xamox Academy</strong><small>Administración del Campus</small></span>
+  </a>
+</h1>
+{% endblock %}
