@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import SetPasswordForm
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
-from django.db import connection, transaction
+from django.db import connection
 from django.db.models import Count, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,15 +21,27 @@ from django.views.decorators.http import require_POST
 from django.views.static import serve
 
 from .decorators import staff_required
-from .forms import StudentCreateForm
-from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Purchase, Resource
-from .services import course_progress, provision_buyer_access, send_purchase_access_email
+from .forms import AcceptInvitationForm, InviteSeatForm, PostPurchaseForm, StudentCreateForm
+from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Purchase, Resource, SeatInvitation
+from .services import (
+    accept_seat_invitation,
+    course_progress,
+    ensure_access_email,
+    invite_second_seat,
+    process_paid_session,
+    seats_status,
+    set_single_seat,
+)
 
 logger = logging.getLogger("core")
 
 
 def home(request):
     return redirect("dashboard" if request.user.is_authenticated else "login")
+
+
+def _buyer_purchase(user):
+    return Purchase.objects.filter(buyer_email__iexact=user.email, status="paid").order_by("-created_at").first()
 
 
 @login_required
@@ -41,13 +53,39 @@ def dashboard(request):
     next_lesson = None
     for enrollment in enrollments:
         lesson = Lesson.objects.filter(module__course=enrollment.course, published=True).exclude(
-            progress_records__user=request.user,
-            progress_records__completed=True,
+            progress_records__user=request.user, progress_records__completed=True,
         ).order_by("module__position", "position").first()
         if lesson:
             next_lesson = lesson
             break
-    return render(request, "core/dashboard.html", {"cards": cards, "next_lesson": next_lesson})
+
+    purchase = _buyer_purchase(request.user)
+    seat_info = seats_status(purchase) if purchase else None
+    return render(request, "core/dashboard.html", {
+        "cards": cards, "next_lesson": next_lesson,
+        "purchase": purchase, "seat_info": seat_info, "invite_form": InviteSeatForm(),
+    })
+
+
+@login_required
+@require_POST
+def invite_seat(request):
+    purchase = _buyer_purchase(request.user)
+    if not purchase:
+        raise Http404
+    form = InviteSeatForm(request.POST)
+    if form.is_valid():
+        try:
+            invite_second_seat(purchase, form.cleaned_data["guest_name"], form.cleaned_data["guest_email"])
+            messages.success(request, "Invitación enviada al segundo alumno.")
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        except Exception:
+            logger.exception("Fallo enviando invitación de plaza")
+            messages.error(request, "No se pudo enviar la invitación. Inténtalo de nuevo o escribe a soporte.")
+    else:
+        messages.error(request, "Revisa el nombre y el email del segundo alumno.")
+    return redirect("dashboard")
 
 
 @login_required
@@ -58,33 +96,26 @@ def course_detail(request, slug):
     completed_ids = set(
         LessonProgress.objects.filter(user=request.user, completed=True).values_list("lesson_id", flat=True)
     )
-    return render(
-        request,
-        "core/course_detail.html",
-        {"course": course, "modules": modules, "completed_ids": completed_ids, "progress": course_progress(request.user, course)},
-    )
+    return render(request, "core/course_detail.html", {
+        "course": course, "modules": modules, "completed_ids": completed_ids,
+        "progress": course_progress(request.user, course),
+    })
 
 
 @login_required
 def lesson_detail(request, lesson_id):
-    lesson = get_object_or_404(
-        Lesson.objects.select_related("module", "module__course"), id=lesson_id, published=True
-    )
+    lesson = get_object_or_404(Lesson.objects.select_related("module", "module__course"), id=lesson_id, published=True)
     get_object_or_404(Enrollment, user=request.user, course=lesson.module.course, status="active")
     if lesson.release_at and lesson.release_at > timezone.now():
         raise Http404
     progress, _ = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
     ActivityLog.objects.create(
-        user=request.user,
-        action="lesson_viewed",
-        metadata={"lesson_id": lesson.id},
+        user=request.user, action="lesson_viewed", metadata={"lesson_id": lesson.id},
         ip_address=request.META.get("REMOTE_ADDR") or None,
     )
-    return render(
-        request,
-        "core/lesson_detail.html",
-        {"lesson": lesson, "progress": progress, "resources": lesson.resources.filter(published=True)},
-    )
+    return render(request, "core/lesson_detail.html", {
+        "lesson": lesson, "progress": progress, "resources": lesson.resources.filter(published=True),
+    })
 
 
 @login_required
@@ -127,6 +158,99 @@ def protected_media(request, path):
     return serve(request, path, document_root=settings.MEDIA_ROOT, show_indexes=False)
 
 
+# ---------------------------------------------------------------------------
+# Post-compra: formulario de nombres + elección promo / 1 persona
+# ---------------------------------------------------------------------------
+def post_purchase(request):
+    session_id = (request.GET.get("session_id") or request.POST.get("session_id") or "").strip()
+    if not session_id:
+        raise Http404
+
+    if not settings.STRIPE_SECRET_KEY:
+        return render(request, "core/post_compra.html", {"error": "Pagos no configurados. Escríbenos a soporte."})
+
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception:
+        logger.exception("No se pudo recuperar la sesión de Stripe %s", session_id)
+        raise Http404
+
+    if session.get("payment_status") != "paid":
+        return render(request, "core/post_compra.html", {"pending": True})
+    if settings.STRIPE_PAYMENT_LINK_ID and session.get("payment_link") != settings.STRIPE_PAYMENT_LINK_ID:
+        raise Http404
+
+    purchase = Purchase.objects.filter(stripe_session_id=session_id).first()
+    if not purchase:
+        try:
+            purchase, buyer = process_paid_session(session)
+        except Exception:
+            logger.exception("No se pudo procesar la sesión pagada %s", session_id)
+            return render(request, "core/post_compra.html", {"error": "Estamos registrando tu compra. Vuelve a intentarlo en un minuto."})
+
+    # Aseguramos el email de acceso del comprador (best-effort, no bloquea el formulario)
+    from django.contrib.auth import get_user_model
+    buyer_user = get_user_model().objects.filter(email__iexact=purchase.buyer_email).first()
+    if buyer_user:
+        try:
+            ensure_access_email(buyer_user, purchase)
+        except Exception:
+            logger.exception("Email de acceso pendiente para purchase_id=%s", purchase.id)
+
+    if request.method == "POST":
+        form = PostPurchaseForm(request.POST, buyer_email=purchase.buyer_email)
+        if form.is_valid():
+            if buyer_user and form.cleaned_data["buyer_name"]:
+                from .services import _apply_name
+                _apply_name(buyer_user, form.cleaned_data["buyer_name"])
+                buyer_user.save(update_fields=["first_name", "last_name"])
+            purchase.buyer_name = form.cleaned_data["buyer_name"]
+            purchase.save(update_fields=["buyer_name", "updated_at"])
+
+            if form.cleaned_data["plan"] == "promo":
+                try:
+                    invite_second_seat(purchase, form.cleaned_data["guest_name"], form.cleaned_data["guest_email"])
+                    messages.success(request, "¡Listo! Hemos enviado la invitación al segundo alumno.")
+                except Exception as exc:
+                    logger.exception("Fallo invitando segunda plaza")
+                    messages.error(request, f"Tu acceso está activo, pero la invitación falló: {exc}")
+            else:
+                set_single_seat(purchase)
+                messages.success(request, "¡Listo! Tu acceso está activo.")
+            return render(request, "core/post_compra.html", {"done": True, "purchase": purchase, "seat_info": seats_status(purchase)})
+    else:
+        form = PostPurchaseForm(buyer_email=purchase.buyer_email, initial={"buyer_name": purchase.buyer_name})
+
+    return render(request, "core/post_compra.html", {"form": form, "purchase": purchase, "session_id": session_id})
+
+
+def accept_invitation(request, token):
+    invitation = get_object_or_404(SeatInvitation, token=token)
+    if invitation.status != "pending":
+        return render(request, "registration/accept_invitation.html", {"unavailable": True})
+
+    if request.method == "POST":
+        form = AcceptInvitationForm(request.POST)
+        if form.is_valid():
+            try:
+                user = accept_seat_invitation(invitation, form.cleaned_data["full_name"], form.cleaned_data["password1"])
+            except Exception as exc:
+                logger.exception("Fallo aceptando invitación")
+                messages.error(request, f"No se pudo completar el acceso: {exc}")
+                return render(request, "registration/accept_invitation.html", {"form": form, "invitation": invitation})
+            login(request, user, backend="core.auth_backend.EmailOrUsernameBackend")
+            messages.success(request, "Cuenta activada. Bienvenido a Xamox Academy.")
+            return redirect("dashboard")
+    else:
+        form = AcceptInvitationForm(initial={"full_name": invitation.invited_name})
+
+    return render(request, "registration/accept_invitation.html", {"form": form, "invitation": invitation})
+
+
+# ---------------------------------------------------------------------------
+# Panel admin propio
+# ---------------------------------------------------------------------------
 @staff_required
 def admin_dashboard(request):
     stats = {
@@ -144,11 +268,9 @@ def admin_dashboard(request):
 
 @staff_required
 def admin_students(request):
-    return render(
-        request,
-        "core/admin_students.html",
-        {"students": User.objects.filter(is_staff=False).prefetch_related("enrollments__course").order_by("-date_joined")},
-    )
+    return render(request, "core/admin_students.html", {
+        "students": User.objects.filter(is_staff=False).prefetch_related("enrollments__course").order_by("-date_joined"),
+    })
 
 
 @staff_required
@@ -164,16 +286,12 @@ def admin_student_create(request):
 @staff_required
 def admin_student_detail(request, user_id):
     student = get_object_or_404(User, id=user_id, is_staff=False)
-    return render(
-        request,
-        "core/admin_student_detail.html",
-        {
-            "student": student,
-            "enrollments": student.enrollments.select_related("course"),
-            "progress_records": LessonProgress.objects.filter(user=student).select_related("lesson", "lesson__module").order_by("-updated_at"),
-            "courses": Course.objects.filter(active=True).order_by("title"),
-        },
-    )
+    return render(request, "core/admin_student_detail.html", {
+        "student": student,
+        "enrollments": student.enrollments.select_related("course"),
+        "progress_records": LessonProgress.objects.filter(user=student).select_related("lesson", "lesson__module").order_by("-updated_at"),
+        "courses": Course.objects.filter(active=True).order_by("title"),
+    })
 
 
 @staff_required
@@ -225,9 +343,7 @@ def stripe_webhook(request):
 
     try:
         event = stripe.Webhook.construct_event(
-            request.body,
-            request.META.get("HTTP_STRIPE_SIGNATURE", ""),
-            settings.STRIPE_WEBHOOK_SECRET,
+            request.body, request.META.get("HTTP_STRIPE_SIGNATURE", ""), settings.STRIPE_WEBHOOK_SECRET,
         )
     except Exception:
         logger.exception("Firma Stripe inválida")
@@ -242,43 +358,18 @@ def stripe_webhook(request):
     if session.get("payment_status") != "paid":
         return JsonResponse({"status": "pending"}, status=200)
 
-    customer_details = session.get("customer_details") or {}
-    email = (customer_details.get("email") or session.get("customer_email") or "").strip().lower()
-    buyer_name = (customer_details.get("name") or "").strip()
-    if not email:
-        return JsonResponse({"error": "Stripe no devolvió email del comprador"}, status=400)
+    try:
+        purchase, user = process_paid_session(session)
+    except ValueError as exc:
+        return JsonResponse({"error": str(exc)}, status=400)
+    except LookupError as exc:
+        return JsonResponse({"error": str(exc)}, status=503)
 
-    course = Course.objects.filter(slug="ia-marketing-digital", active=True).first()
-    if not course:
-        return JsonResponse({"error": "Curso Xamox Academy no encontrado"}, status=503)
-
-    with transaction.atomic():
-        purchase, _ = Purchase.objects.update_or_create(
-            stripe_session_id=session["id"],
-            defaults={
-                "stripe_payment_intent": session.get("payment_intent") or "",
-                "buyer_email": email,
-                "buyer_name": buyer_name,
-                "amount_cents": session.get("amount_total") or 0,
-                "currency": session.get("currency") or "eur",
-                "status": "paid",
-                "seats": 2,
-                "course": course,
-            },
-        )
-        user = provision_buyer_access(purchase, buyer_name=buyer_name)
-
-    already_sent = ActivityLog.objects.filter(
-        user=user,
-        action="access_email_sent",
-        metadata__purchase_id=purchase.id,
-    ).exists()
-    if not already_sent:
-        try:
-            send_purchase_access_email(user, purchase)
-        except Exception:
-            logger.exception("No se pudo enviar el email de acceso para purchase_id=%s", purchase.id)
-            return JsonResponse({"error": "Compra registrada; email pendiente"}, status=500)
+    try:
+        ensure_access_email(user, purchase)
+    except Exception:
+        logger.exception("No se pudo enviar el email de acceso para purchase_id=%s", purchase.id)
+        return JsonResponse({"error": "Compra registrada; email pendiente"}, status=500)
 
     return JsonResponse({"status": "ok", "purchase_id": purchase.id, "student_id": user.id}, status=200)
 
@@ -292,10 +383,7 @@ def health(request):
         required = {"auth_user", "django_session", "django_migrations", "core_course"}
         missing = sorted(required - tables)
         if missing:
-            return JsonResponse(
-                {"status": "error", "database": "ok", "schema": "incomplete", "missing_tables": missing},
-                status=503,
-            )
+            return JsonResponse({"status": "error", "database": "ok", "schema": "incomplete", "missing_tables": missing}, status=503)
         return JsonResponse({"status": "ok", "database": "ok", "schema": "ok"})
     except Exception:
         logger.exception("Healthcheck de base de datos fallido")

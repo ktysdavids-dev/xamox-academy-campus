@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<body style="margin:0;padding:0;background:#071426;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#071426;padding:32px 16px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#0b1c31;border:1px solid rgba(215,177,90,.25);border-radius:16px;overflow:hidden;">
+        <tr>
+          <td style="padding:28px 32px 18px;text-align:center;background:#081629;">
+            <img src="https://cdn.prod.website-files.com/68b944d4a42f90c19d14a5da/6a9af33ff4a396bb973294ed_ChatGPT%20Image%204%20sept%202026%2C%2016_59_29.webp" alt="Xamox Academy" width="170" style="display:block;margin:0 auto;border-radius:12px;">
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:32px;">
+            <div style="font-size:11px;letter-spacing:1.4px;color:#d7b15a;font-weight:700;">TE HAN INVITADO</div>
+            <h1 style="font-size:28px;line-height:1.2;margin:10px 0 14px;color:#ffffff;">Tienes una plaza en Xamox Academy</h1>
+            <p style="font-size:15px;line-height:1.7;color:#a7b2c1;margin:0 0 18px;">Hola {{ invited_name|default:"" }}, {{ buyer_name|default:"un compañero" }} te ha invitado al Campus del Programa Intensivo de IA &amp; Marketing Digital.</p>
+            <p style="font-size:15px;line-height:1.7;color:#a7b2c1;margin:0 0 24px;">Crea tu cuenta y tu contraseña desde el botón:</p>
+            <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="background:#d7b15a;border-radius:8px;"><a href="{{ accept_url }}" style="display:inline-block;padding:15px 22px;color:#101722;text-decoration:none;font-weight:700;font-size:14px;">Aceptar y crear mi cuenta →</a></td></tr></table>
+            <div style="height:1px;background:#24354c;margin:28px 0;"></div>
+            <p style="font-size:13px;line-height:1.65;color:#7f8da0;margin:0;">Si no esperabas esta invitación, puedes ignorar este email. ¿Dudas? Escribe a <a href="mailto:{{ support_email }}" style="color:#efcf7c;">{{ support_email }}</a>.</p>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:11px;color:#617085;margin-top:18px;">Xamox Academy · Ktys &amp; Davids Productions</p>
+    </td></tr>
+  </table>
+</body>
+</html>

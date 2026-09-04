@@ -107,6 +107,7 @@ class SeatInvitation(TimestampedModel):
     STATUS = [("pending","Pendiente"),("accepted","Aceptada"),("revoked","Revocada")]
     purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name="seat_invitations")
     email = models.EmailField()
+    invited_name = models.CharField(max_length=180, blank=True)
     token = models.CharField(max_length=80, unique=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS, default="pending")
     accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name="accepted_seat_invitations")

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Aceptar invitación · Xamox Academy{% endblock %}
+{% block content %}
+<section class="auth-shell">
+  <div class="auth-card auth-card-premium activation-card">
+    <div class="auth-logo-mobile always-visible">
+      <img src="https://cdn.prod.website-files.com/68b944d4a42f90c19d14a5da/6a9af33ff4a396bb973294ed_ChatGPT%20Image%204%20sept%202026%2C%2016_59_29.webp" alt="Xamox Academy">
+    </div>
+    {% if unavailable %}
+      <div class="eyebrow">INVITACIÓN NO DISPONIBLE</div>
+      <h1>Este enlace ya no se puede utilizar</h1>
+      <p>La invitación puede haber sido aceptada o revocada. Escríbenos y te ayudamos.</p>
+      <a class="btn secondary btn-wide" href="mailto:hola@ktysdavids.com">Contactar con soporte</a>
+    {% else %}
+      <div class="eyebrow">TU PLAZA EN XAMOX ACADEMY</div>
+      <h1>Crea tu cuenta y entra</h1>
+      <p>Te han regalado una plaza en el Programa Intensivo de IA &amp; Marketing Digital. Elige tu contraseña para acceder.</p>
+      <form method="post" class="form-grid auth-form">
+        {% csrf_token %}
+        <label>Tu nombre completo{{ form.full_name }}</label>
+        {% if form.full_name.errors %}<div class="error-box">{{ form.full_name.errors.0 }}</div>{% endif %}
+        <label>Contraseña{{ form.password1 }}</label>
+        {% if form.password1.errors %}<div class="error-box">{{ form.password1.errors.0 }}</div>{% endif %}
+        <label>Repite la contraseña{{ form.password2 }}</label>
+        {% if form.password2.errors %}<div class="error-box">{{ form.password2.errors.0 }}</div>{% endif %}
+        <button class="btn primary btn-wide" type="submit">Activar mi cuenta →</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

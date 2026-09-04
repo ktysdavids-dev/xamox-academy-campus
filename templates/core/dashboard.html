@@ -18,6 +18,30 @@
     <div><span>Soporte</span><strong>Campus + recursos</strong></div>
   </div>
 
+  {% if purchase and seat_info %}
+    <div class="seat-panel">
+      <div class="seat-head">
+        <span class="eyebrow">PROMOCIÓN 2 PERSONAS</span>
+        <h2>Tu segunda plaza <small>({{ seat_info.used }}/{{ seat_info.total }})</small></h2>
+      </div>
+      {% if seat_info.invitation and seat_info.invitation.status == "accepted" %}
+        <p class="seat-ok">Plaza activada por <strong>{{ seat_info.invitation.email }}</strong>. ¡Las dos plazas están en uso!</p>
+      {% else %}
+        {% if seat_info.invitation and seat_info.invitation.status == "pending" %}
+          <p>Invitación pendiente enviada a <strong>{{ seat_info.invitation.email }}</strong>. Puedes reenviarla o cambiar el destinatario:</p>
+        {% else %}
+          <p>Tienes una segunda plaza disponible. Invita a quien quieras y recibirá su acceso por email:</p>
+        {% endif %}
+        <form method="post" action="{% url 'invite_seat' %}" class="seat-form">
+          {% csrf_token %}
+          <input type="text" name="guest_name" placeholder="Nombre del segundo alumno" required>
+          <input type="email" name="guest_email" placeholder="Email del segundo alumno" required>
+          <button class="btn secondary" type="submit">Enviar invitación →</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+
   <div class="section-heading"><div><span class="eyebrow">FORMACIÓN ACTIVA</span><h2>Mis programas</h2></div></div>
   <div class="course-grid premium-course-grid">
     {% for card in cards %}

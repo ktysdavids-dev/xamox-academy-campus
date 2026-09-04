@@ -1,0 +1,13 @@
+Hola {{ invited_name }},
+
+{{ buyer_name|default:"Un compañero" }} te ha invitado al Campus de Xamox Academy
+(Programa Intensivo de IA & Marketing Digital).
+
+Crea tu cuenta y tu contraseña desde este enlace:
+{{ accept_url }}
+
+Si no esperabas esta invitación, puedes ignorar este email.
+¿Dudas? Escribe a {{ support_email }}.
+
+Xamox Academy
+Ktys & Davids Productions
