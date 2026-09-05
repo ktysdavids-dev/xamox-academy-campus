@@ -78,24 +78,38 @@
 
   const roulette=document.querySelector('[data-roulette]');
   if(roulette){
-    const wheel=document.getElementById('rouletteWheel'),btn=document.getElementById('spinWheelBtn'),card=document.getElementById('questionCard'),resultBox=document.getElementById('rouletteResult');
+    const wheel=document.getElementById('rouletteWheel');
+    const btn=document.getElementById('spinWheelBtn');
+    const coreBtn=document.getElementById('wheelCoreBtn');
+    const card=document.getElementById('questionCard');
+    const resultBox=document.getElementById('rouletteResult');
     const target=(roulette.dataset.target||'General').trim();
     const pool=[target,'Prompting','Modelos','Workflows','Seguridad','Herramientas','Criterio','Multimodal'];
     const sectors=[...new Set(pool)].slice(0,8);while(sectors.length<8) sectors.push('IA');
     roulette.querySelectorAll('.wheel-label').forEach((el,i)=>{el.textContent=sectors[i];el.style.setProperty('--i',i)});
     const idx=Math.max(0,sectors.indexOf(target));
     let spinning=false;
-    btn?.addEventListener('click',()=>{
-      if(spinning) return;spinning=true;ctx();play('spin');btn.disabled=true;btn.textContent='Girando…';
-      let ticks=0;const tick=setInterval(()=>{play('tick');ticks++;if(ticks>28) clearInterval(tick)},125);
-      const angle=360*6 + (360-(idx*45+22.5));wheel.style.transform=`rotate(${angle}deg)`;
+
+    const spin=()=>{
+      if(spinning) return;
+      spinning=true;ctx();play('spin');roulette.classList.add('spinning');
+      if(btn){btn.disabled=true;btn.textContent='Girando…'}
+      if(coreBtn){coreBtn.disabled=true;const strong=coreBtn.querySelector('strong');if(strong) strong.textContent='...'}
+      let ticks=0;
+      const tick=setInterval(()=>{play('tick');ticks++;if(ticks>30) clearInterval(tick)},120);
+      const angle=360*7 + (360-(idx*45+22.5));
+      wheel.style.transform=`rotate(${angle}deg)`;
       setTimeout(()=>{
-        clearInterval(tick);play('reward');roulette.classList.add('landed');
+        clearInterval(tick);play('reward');roulette.classList.remove('spinning');roulette.classList.add('landed');
         if(resultBox){resultBox.hidden=false;resultBox.querySelector('strong').textContent=target}
         if(card){card.hidden=false;card.classList.add('question-reveal');card.scrollIntoView({behavior:'smooth',block:'center'})}
-        btn.textContent='Ruleta girada ✓';
+        if(btn) btn.textContent='Ruleta girada ✓';
+        if(coreBtn){const strong=coreBtn.querySelector('strong');if(strong) strong.textContent='LISTO'}
       },4800);
-    });
+    };
+
+    btn?.addEventListener('click',spin);
+    coreBtn?.addEventListener('click',spin);
   }
 
   const lab=document.querySelector('.mode-lab textarea');
