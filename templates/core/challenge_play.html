@@ -1,26 +1,63 @@
 {% extends "base.html" %}
-{% block title %}{{ attempt.challenge.title }} · Xamox Challenge{% endblock %}
+{% block title %}{{ attempt.challenge.title }} · Xamox Arena{% endblock %}
 {% block content %}
-<section class="page-shell challenge-shell">
-  <a class="back" href="{% url 'challenge_detail' attempt.challenge.id %}">← Salir del reto</a>
-  <div class="challenge-play-head"><div><div class="eyebrow">XAMOX CHALLENGE</div><h1>{{ attempt.challenge.title }}</h1><p>Lee cada pregunta con atención. El examen se corrige al enviarlo.</p></div><div class="xp-card"><span>RECOMPENSA</span><strong>+{{ attempt.challenge.xp_reward }}</strong><small>XP si superas</small></div></div>
-  <form method="post" action="{% url 'challenge_submit' attempt.id %}" class="quiz-form">{% csrf_token %}
-    {% for row in rows %}
-      <article class="quiz-question">
-        <div class="quiz-question-head"><span>Pregunta {{ forloop.counter }}</span><b>{{ row.question.points }} pts</b></div>
-        <h2>{{ row.question.prompt }}</h2>
-        {% if row.question.question_type == 'text' %}
-          <textarea name="q_{{ row.question.id }}" rows="7" placeholder="Escribe aquí tu respuesta..."></textarea>
-        {% else %}
-          <div class="quiz-options">
-            {% for option in row.question.options.all %}
-              <label class="quiz-option"><input type="radio" name="q_{{ row.question.id }}" value="{{ option.id }}"><span>{{ option.text }}</span></label>
-            {% endfor %}
-          </div>
-        {% endif %}
-      </article>
-    {% endfor %}
-    <button class="btn primary btn-wide quiz-submit" type="submit">Finalizar y corregir →</button>
-  </form>
+<section class="page-shell narrow challenge-shell play-shell">
+  <div class="arena-topline">
+    <a class="back" href="{% url 'challenge_detail' attempt.challenge.id %}">← Volver al juego</a>
+    <a class="back subtle" href="{% url 'challenge_hub' %}">Xamox Arena</a>
+  </div>
+
+  <div class="play-status">
+    <div><span class="eyebrow">{{ attempt.challenge.game_icon }} {{ attempt.challenge.game_label }}</span><h1>{{ attempt.challenge.title }}</h1></div>
+    <div class="play-count"><span>PRUEBA</span><strong>{{ question_number }}/{{ total_questions }}</strong></div>
+  </div>
+
+  <div class="arena-progress"><span style="width:{{ progress }}%"></span></div>
+
+  {% if attempt.challenge.game_mode == 'roulette' %}
+    <div class="roulette-stage"><div class="roulette-wheel" id="rouletteWheel">🎡</div><div><span class="eyebrow">LA RULETA HA ELEGIDO</span><strong>{{ row.question.category|default:"General" }}</strong></div></div>
+  {% endif %}
+
+  {% if attempt.challenge.game_mode == 'speed' %}
+    <div class="timer-card"><span>TIEMPO</span><strong id="arenaTimer">{{ seconds }}</strong><small>segundos</small></div>
+  {% endif %}
+
+  <article class="quiz-question single-question mode-{{ attempt.challenge.game_mode }}">
+    <div class="quiz-question-head"><span>{{ row.question.category|default:"General" }} · {{ row.question.get_difficulty_display }}</span><b>{{ row.question.points }} pts</b></div>
+    <h2>{{ row.question.prompt }}</h2>
+    <form method="post" action="{% url 'challenge_answer' attempt.id row.id %}" id="arenaAnswerForm">{% csrf_token %}
+      {% if row.question.question_type == 'text' %}
+        <textarea name="answer" rows="9" placeholder="Escribe tu solución con el máximo criterio posible..." required></textarea>
+        <p class="micro-help">No hay una respuesta mágica: después podrás comparar tu propuesta con una solución profesional.</p>
+      {% else %}
+        <div class="quiz-options">
+          {% for option in row.question.options.all %}
+            <label class="quiz-option"><input type="radio" name="answer" value="{{ option.id }}"><span>{{ option.text }}</span></label>
+          {% endfor %}
+        </div>
+      {% endif %}
+      <input type="hidden" name="timed_out" id="timedOut" value="0">
+      <button class="btn primary btn-wide quiz-submit" type="submit">Confirmar respuesta →</button>
+    </form>
+  </article>
 </section>
+
+{% if attempt.challenge.game_mode == 'speed' %}
+<script>
+(function(){
+  let left={{ seconds }};
+  const timer=document.getElementById('arenaTimer');
+  const form=document.getElementById('arenaAnswerForm');
+  const timed=document.getElementById('timedOut');
+  const tick=setInterval(function(){
+    left-=1; timer.textContent=left;
+    if(left<=5) timer.parentElement.classList.add('danger');
+    if(left<=0){ clearInterval(tick); timed.value='1'; form.submit(); }
+  },1000);
+})();
+</script>
+{% endif %}
+{% if attempt.challenge.game_mode == 'roulette' %}
+<script>setTimeout(()=>document.getElementById('rouletteWheel')?.classList.add('settled'),450);</script>
+{% endif %}
 {% endblock %}
