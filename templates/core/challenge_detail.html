@@ -16,17 +16,17 @@
     {% if best %}<div class="challenge-best big">Tu récord <strong>{{ best.percent }}%</strong>{% if best.passed %}<em>SUPERADO</em>{% endif %}</div>{% endif %}
 
     <div class="game-rules">
-      {% if challenge.game_mode == 'roulette' %}<strong>🎡 Cómo se juega</strong><p>Las categorías cambian como una ruleta. Responde una prueba cada vez y recibe feedback inmediato antes del siguiente giro.</p>
-      {% elif challenge.game_mode == 'speed' %}<strong>⚡ Cómo se juega</strong><p>Tienes 25 segundos por prueba. Si superas el reto con rapidez, consigues XP extra. La precisión sigue siendo lo más importante.</p>
+      {% if challenge.game_mode == 'roulette' %}<strong>🎡 Cómo se juega</strong><p>Gira una ruleta real. Cuando se detenga, se revela la categoría y aparece tu pregunta. Cada ronda requiere un nuevo giro.</p>
+      {% elif challenge.game_mode == 'speed' %}<strong>⚡ Cómo se juega</strong><p>Activa el relámpago para iniciar la cuenta atrás de 25 segundos. Si respondes rápido y bien, consigues XP extra.</p>
       {% elif challenge.game_mode == 'lab' %}<strong>🧪 Cómo se juega</strong><p>Resuelve un caso práctico con tus propias palabras. Después verás una solución profesional para compararla con tu enfoque.</p>
       {% elif challenge.game_mode == 'exam' %}<strong>🏆 Boss Final</strong><p>No verás pistas ni correcciones hasta terminar. Es la evaluación final del módulo.</p>
       {% else %}<strong>🧠 Entrenamiento</strong><p>Responde una prueba cada vez. Después de cada respuesta verás la explicación profesional y podrás seguir entrenando.</p>{% endif %}
     </div>
 
     {% if active_attempt %}
-      <a class="btn primary btn-wide" href="{% url 'challenge_play' active_attempt.id %}">Continuar partida →</a>
+      <a class="btn primary btn-wide" href="{% url 'challenge_play' active_attempt.id %}" data-sfx="{% if challenge.game_mode == 'speed' %}lightning{% elif challenge.game_mode == 'lab' %}lab{% elif challenge.game_mode == 'exam' %}boss{% else %}quiz{% endif %}">Continuar partida →</a>
     {% elif can_attempt %}
-      <form method="post" action="{% url 'challenge_start' challenge.id %}">{% csrf_token %}<button class="btn primary btn-wide" type="submit">Empezar partida →</button></form>
+      <form method="post" action="{% url 'challenge_start' challenge.id %}">{% csrf_token %}<button class="btn primary btn-wide" type="submit" data-sfx="{% if challenge.game_mode == 'speed' %}lightning{% elif challenge.game_mode == 'lab' %}lab{% elif challenge.game_mode == 'exam' %}boss{% elif challenge.game_mode == 'roulette' %}spin{% else %}quiz{% endif %}">Empezar partida →</button></form>
     {% else %}
       <div class="challenge-locked">Has utilizado todos los intentos disponibles.</div>
     {% endif %}
