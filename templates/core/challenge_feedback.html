@@ -5,18 +5,20 @@
   <div class="arena-topline"><a class="back" href="{% url 'challenge_detail' attempt.challenge.id %}">← Volver al juego</a><a class="back subtle" href="{% url 'challenge_hub' %}">Xamox Arena</a></div>
   <div class="arena-progress"><span style="width:{{ progress }}%"></span></div>
 
-  <article class="feedback-card {% if row.question.question_type != 'text' %}{% if row.is_correct %}correct{% else %}wrong{% endif %}{% endif %}">
-    <div class="feedback-icon">{% if row.question.question_type == 'text' %}🧪{% elif row.is_correct %}✅{% else %}🧠{% endif %}</div>
-    <span class="eyebrow">{{ attempt.challenge.game_label }}</span>
-    <h1>{% if row.question.question_type == 'text' %}Compara tu enfoque{% elif row.is_correct %}¡Respuesta correcta!{% else %}Aquí está la clave{% endif %}</h1>
+  <article class="feedback-card {% if row.question.question_type != 'text' %}{% if row.is_correct %}correct{% else %}wrong{% endif %}{% endif %}" data-feedback-sfx="{% if row.question.question_type == 'text' %}lab{% elif row.is_correct %}correct{% else %}wrong{% endif %}">
+    <div class="feedback-burst">
+      <div class="feedback-icon">{% if row.question.question_type == 'text' %}🧪{% elif row.is_correct %}🏆{% else %}✕{% endif %}</div>
+    </div>
+    <span class="eyebrow">{{ attempt.challenge.game_icon }} {{ attempt.challenge.game_label }}</span>
+    <h1>{% if row.question.question_type == 'text' %}Laboratorio completado{% elif row.is_correct %}¡Excelente! + puntos{% else %}No pasa nada: aprende y sigue{% endif %}</h1>
     <p class="feedback-question">{{ row.question.prompt }}</p>
 
     {% if row.question.question_type == 'text' %}<div class="answer-box"><span>TU SOLUCIÓN</span><p>{{ row.text_answer }}</p></div>{% elif row.selected_option %}<div class="answer-box"><span>TU RESPUESTA</span><p>{{ row.selected_option.text }}</p></div>{% else %}<div class="answer-box"><span>TIEMPO</span><p>Tiempo agotado. La partida continúa.</p></div>{% endif %}
 
-    {% if row.question.explanation %}<div class="explanation"><span>POR QUÉ</span><p>{{ row.question.explanation }}</p></div>{% endif %}
+    {% if row.question.explanation %}<div class="explanation"><span>CLAVE PROFESIONAL</span><p>{{ row.question.explanation }}</p></div>{% endif %}
     {% if row.question.question_type == 'text' and row.question.model_answer %}<div class="pro-solution"><span>SOLUCIÓN PROFESIONAL</span><p>{{ row.question.model_answer }}</p></div>{% endif %}
 
-    {% if is_last %}<a class="btn primary btn-wide" href="{% url 'challenge_result' attempt.id %}">Ver resultado final →</a>{% else %}<a class="btn primary btn-wide" href="{% url 'challenge_play' attempt.id %}">{% if attempt.challenge.game_mode == 'roulette' %}Girar de nuevo 🎡{% else %}Siguiente prueba →{% endif %}</a>{% endif %}
+    {% if is_last %}<a class="btn primary btn-wide" href="{% url 'challenge_result' attempt.id %}" data-sfx="reward">Ver resultado final →</a>{% else %}<a class="btn primary btn-wide" href="{% url 'challenge_play' attempt.id %}" data-sfx="click">{% if attempt.challenge.game_mode == 'roulette' %}Volver a girar 🎡{% elif attempt.challenge.game_mode == 'speed' %}Siguiente relámpago ⚡{% else %}Siguiente prueba →{% endif %}</a>{% endif %}
   </article>
 </section>
 {% endblock %}
