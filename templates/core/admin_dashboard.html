@@ -10,7 +10,7 @@
     </div>
     <div class="admin-actions">
       <a class="btn primary" href="{% url 'admin_student_create' %}">+ Nuevo alumno</a>
-      <a class="btn secondary" href="/django-admin/core/lesson/add/">+ Publicar clase</a>
+      <a class="btn secondary" href="{% url 'admin_content' %}">+ Publicar clase</a>
       <a class="btn secondary" href="/django-admin/">Django Admin</a>
     </div>
   </div>
@@ -45,10 +45,10 @@
   </div>
 
   <div class="admin-shortcuts">
-    <a href="/django-admin/core/course/"><span>01</span><strong>Cursos</strong><small>Programa y portada</small></a>
-    <a href="/django-admin/core/module/"><span>02</span><strong>Módulos</strong><small>Estructura del curso</small></a>
-    <a href="/django-admin/core/lesson/"><span>03</span><strong>Clases</strong><small>Vídeos y publicaciones</small></a>
-    <a href="/django-admin/core/resource/"><span>04</span><strong>Recursos</strong><small>PDF, plantillas y enlaces</small></a>
+    <a href="{% url 'admin_content' %}"><span>01</span><strong>Contenido</strong><small>Módulos, clases y recursos</small></a>
+    <a href="{% url 'admin_students' %}"><span>02</span><strong>Alumnos</strong><small>Matrículas y accesos</small></a>
+    <a href="/django-admin/core/course/"><span>03</span><strong>Cursos</strong><small>Programa y portada</small></a>
+    <a href="/django-admin/core/purchase/"><span>04</span><strong>Compras</strong><small>Historial de Stripe</small></a>
   </div>
 </section>
 {% endblock %}
