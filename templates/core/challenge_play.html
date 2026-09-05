@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ attempt.challenge.title }} · Xamox Arena{% endblock %}
 {% block content %}
-<section class="page-shell narrow challenge-shell play-shell">
+<section class="page-shell narrow challenge-shell play-shell mode-page-{{ attempt.challenge.game_mode }}">
   <div class="arena-topline">
     <a class="back" href="{% url 'challenge_detail' attempt.challenge.id %}">← Volver al juego</a>
     <a class="back subtle" href="{% url 'challenge_hub' %}">Xamox Arena</a>
@@ -15,14 +15,31 @@
   <div class="arena-progress"><span style="width:{{ progress }}%"></span></div>
 
   {% if attempt.challenge.game_mode == 'roulette' %}
-    <div class="roulette-stage"><div class="roulette-wheel" id="rouletteWheel">🎡</div><div><span class="eyebrow">LA RULETA HA ELEGIDO</span><strong>{{ row.question.category|default:"General" }}</strong></div></div>
+    <section class="roulette-gate" data-roulette data-target="{{ row.question.category|default:'General' }}">
+      <div class="roulette-copy"><span class="eyebrow">🎡 RULETA XAMOX</span><h2>Gira y descubre tu siguiente categoría</h2><p>La pregunta permanece oculta hasta que la ruleta termine. Cada giro activa una nueva prueba.</p></div>
+      <div class="roulette-machine">
+        <div class="roulette-pointer" aria-hidden="true"></div>
+        <div class="roulette-wheel-real" id="rouletteWheel">
+          {% for i in "12345678" %}<span class="wheel-label"></span>{% endfor %}
+          <div class="roulette-core"><span>XAMOX</span><strong>GIRAR</strong></div>
+        </div>
+        <button class="btn primary spin-button" type="button" id="spinWheelBtn">Girar ruleta 🎡</button>
+      </div>
+      <div class="roulette-result" id="rouletteResult" hidden><span>CATEGORÍA SELECCIONADA</span><strong></strong><small>Tu prueba ya está lista</small></div>
+    </section>
   {% endif %}
 
   {% if attempt.challenge.game_mode == 'speed' %}
-    <div class="timer-card"><span>TIEMPO</span><strong id="arenaTimer">{{ seconds }}</strong><small>segundos</small></div>
+    <section class="speed-game" data-speed-game data-seconds="{{ seconds }}">
+      <div class="speed-gate">
+        <div class="lightning-orb">⚡</div><span class="eyebrow">RETO RELÁMPAGO</span><h2>25 segundos. Una decisión.</h2><p>Cuando pulses activar, empieza la cuenta atrás. Responde con precisión y gana XP extra por velocidad.</p>
+        <button class="btn primary btn-wide" id="speedStart" type="button">⚡ Activar reto</button>
+      </div>
+      <div class="timer-card"><span>TIEMPO</span><strong id="arenaTimer">{{ seconds }}</strong><small>segundos</small></div>
+    </section>
   {% endif %}
 
-  <article class="quiz-question single-question mode-{{ attempt.challenge.game_mode }}">
+  <article class="quiz-question single-question mode-{{ attempt.challenge.game_mode }}" id="questionCard" {% if attempt.challenge.game_mode == 'roulette' or attempt.challenge.game_mode == 'speed' %}hidden{% endif %}>
     <div class="quiz-question-head"><span>{{ row.question.category|default:"General" }} · {{ row.question.get_difficulty_display }}</span><b>{{ row.question.points }} pts</b></div>
     <h2>{{ row.question.prompt }}</h2>
     <form method="post" action="{% url 'challenge_answer' attempt.id row.id %}" id="arenaAnswerForm">{% csrf_token %}
@@ -32,7 +49,7 @@
       {% else %}
         <div class="quiz-options">
           {% for option in row.question.options.all %}
-            <label class="quiz-option"><input type="radio" name="answer" value="{{ option.id }}"><span>{{ option.text }}</span></label>
+            <label class="quiz-option"><input type="radio" name="answer" value="{{ option.id }}"><span class="option-letter">{{ forloop.counter }}</span><span class="option-text">{{ option.text }}</span></label>
           {% endfor %}
         </div>
       {% endif %}
@@ -41,23 +58,4 @@
     </form>
   </article>
 </section>
-
-{% if attempt.challenge.game_mode == 'speed' %}
-<script>
-(function(){
-  let left={{ seconds }};
-  const timer=document.getElementById('arenaTimer');
-  const form=document.getElementById('arenaAnswerForm');
-  const timed=document.getElementById('timedOut');
-  const tick=setInterval(function(){
-    left-=1; timer.textContent=left;
-    if(left<=5) timer.parentElement.classList.add('danger');
-    if(left<=0){ clearInterval(tick); timed.value='1'; form.submit(); }
-  },1000);
-})();
-</script>
-{% endif %}
-{% if attempt.challenge.game_mode == 'roulette' %}
-<script>setTimeout(()=>document.getElementById('rouletteWheel')?.classList.add('settled'),450);</script>
-{% endif %}
 {% endblock %}
