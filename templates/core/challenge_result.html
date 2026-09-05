@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Resultado · Xamox Arena{% endblock %}
 {% block content %}
-<section class="page-shell challenge-shell">
+<section class="page-shell challenge-shell" data-result-sfx="{% if attempt.passed %}reward{% else %}wrong{% endif %}">
   <div class="arena-topline"><a class="back" href="{% url 'challenge_hub' %}">← Volver a Xamox Arena</a><a class="back subtle" href="{% url 'dashboard' %}">Mi Campus</a></div>
   <div class="result-hero {% if attempt.passed %}passed{% endif %}">
     <div><div class="eyebrow">{{ attempt.challenge.game_icon }} RESULTADO · {{ attempt.challenge.game_label }}</div><h1>{% if attempt.passed %}Reto superado{% else %}Sigue entrenando{% endif %}</h1><p>{{ attempt.challenge.title }} · Módulo {{ attempt.challenge.module.position }}</p></div>
@@ -26,6 +26,6 @@
     </div>
     <aside class="ranking-card result-ranking"><div class="ranking-head"><div><span class="eyebrow">RANKING</span><h2>Top de este juego</h2></div></div>{% for row in top_players %}<div class="rank-row {% if row.user_id == user.id %}is-me{% endif %}"><span class="rank-pos">#{{ row.rank }}</span><span class="rank-name">{{ row.display_name }}</span><strong>{{ row.best }}%</strong></div>{% empty %}<p class="muted">Aún no hay ranking.</p>{% endfor %}</aside>
   </div>
-  <div class="result-actions"><a class="btn secondary" href="{% url 'challenge_detail' attempt.challenge.id %}">← Volver al juego</a><a class="btn primary" href="{% url 'challenge_hub' %}">Seguir jugando →</a></div>
+  <div class="result-actions"><a class="btn secondary" href="{% url 'challenge_detail' attempt.challenge.id %}" data-sfx="click">← Volver al juego</a><a class="btn primary" href="{% url 'challenge_hub' %}" data-sfx="reward">Seguir jugando →</a></div>
 </section>
 {% endblock %}
