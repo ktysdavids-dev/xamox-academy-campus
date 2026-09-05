@@ -17,6 +17,10 @@ railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
 allowed_hosts = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()]
 if railway_domain and railway_domain not in allowed_hosts:
     allowed_hosts.append(railway_domain)
+# Railway ejecuta el healthcheck interno con este Host. Sin permitirlo,
+# Django responde 400 DisallowedHost y Railway marca el despliegue como no saludable.
+if IS_RAILWAY and "healthcheck.railway.app" not in allowed_hosts:
+    allowed_hosts.append("healthcheck.railway.app")
 ALLOWED_HOSTS = allowed_hosts
 
 trusted_origins = [u.strip() for u in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if u.strip()]
