@@ -1,0 +1,100 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block coltype %}colMS{% endblock %}
+{% block bodyclass %}{{ block.super }} dashboard xa-dashboard{% endblock %}
+{% block nav-breadcrumbs %}{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.xa-dashboard #content{max-width:1280px;padding:26px 32px;}
+.xa-dashboard #content-main{display:block;}
+.xa-eyebrow{font-family:monospace;letter-spacing:2px;text-transform:uppercase;font-size:10px;color:#a1791f;margin:0 0 4px;}
+.xa-title{color:#0b1c31;font-size:26px;margin:0 0 22px;font-weight:600;}
+.xa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.xa-card{background:#0f2138;border:1px solid rgba(215,177,90,.18);border-radius:12px;overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.18);}
+.xa-card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#0b1c31;border-bottom:1px solid rgba(215,177,90,.16);}
+.xa-card-head a{color:#efcf7c!important;font-weight:700;font-size:12.5px;text-decoration:none!important;letter-spacing:.02em;}
+.xa-row{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;border-top:1px solid rgba(255,255,255,.05);}
+.xa-row:first-of-type{border-top:none;}
+.xa-row-name a{color:#e7edf5!important;font-size:11.5px;text-decoration:none!important;}
+.xa-row-name a:hover{color:#efcf7c!important;}
+.xa-row-actions{display:flex;gap:8px;flex:none;}
+.xa-pill{font-family:monospace;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:5px;text-decoration:none!important;}
+.xa-pill-add{background:rgba(215,177,90,.12);color:#efcf7c!important;border:1px solid rgba(215,177,90,.3);}
+.xa-pill-add:hover{background:#d7b15a;color:#101722!important;}
+.xa-pill-change{background:rgba(255,255,255,.05);color:#b7c0cc!important;border:1px solid rgba(255,255,255,.1);}
+.xa-pill-change:hover{background:rgba(255,255,255,.12);color:#fff!important;}
+#content-related{margin-top:0;}
+#content-related .module{background:#0f2138;border:1px solid rgba(215,177,90,.18);border-radius:12px;padding:16px 18px;}
+#content-related h2{background:none!important;color:#efcf7c!important;font-size:11px!important;letter-spacing:.1em;text-transform:uppercase;padding:0 0 10px!important;margin:0!important;border-bottom:1px solid rgba(215,177,90,.16);}
+#content-related h3{color:#8391a4;font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;}
+#content-related .actionlist{list-style:none;margin:0;padding:0;}
+#content-related .actionlist li{padding:9px 0;border-top:1px solid rgba(255,255,255,.05);font-size:11px;}
+#content-related .actionlist li:first-child{border-top:none;}
+#content-related .actionlist a{color:#e7edf5!important;text-decoration:none!important;}
+#content-related .actionlist a:hover{color:#efcf7c!important;}
+#content-related .mini.quiet{color:#66748a;font-size:9px;display:block;margin-top:2px;}
+@media (max-width:960px){.xa-grid{grid-template-columns:1fr;}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <div class="xa-eyebrow">Control del Campus</div>
+  <h1 class="xa-title">Backoffice técnico</h1>
+
+  {% if app_list %}
+    <div class="xa-grid">
+      {% for app in app_list %}
+        <div class="xa-card">
+          <div class="xa-card-head"><a href="{{ app.app_url }}">{{ app.name }}</a></div>
+          {% for model in app.models %}
+            <div class="xa-row">
+              <div class="xa-row-name">
+                {% if model.admin_url %}<a href="{{ model.admin_url }}">{{ model.name }}</a>{% else %}{{ model.name }}{% endif %}
+              </div>
+              <div class="xa-row-actions">
+                {% if model.add_url %}<a href="{{ model.add_url }}" class="xa-pill xa-pill-add">+ Añadir</a>{% endif %}
+                {% if model.admin_url %}<a href="{{ model.admin_url }}" class="xa-pill xa-pill-change">{% if model.view_only %}Ver{% else %}Modificar{% endif %}</a>{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>{% translate "You don't have permission to view or edit anything." %}</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block sidebar %}
+<div id="content-related">
+  <div class="module" id="recent-actions-module">
+    <h2>{% translate 'Recent actions' %}</h2>
+    <h3>{% translate 'My actions' %}</h3>
+    {% load log %}
+    {% get_admin_log 10 as admin_log for_user user %}
+    {% if not admin_log %}
+      <p style="color:#66748a;font-size:11px;">{% translate 'None available' %}</p>
+    {% else %}
+      <ul class="actionlist">
+      {% for entry in admin_log %}
+        <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %}changelink{% endif %}{% if entry.is_deletion %}deletelink{% endif %}">
+          {% if entry.is_deletion or not entry.get_admin_url %}
+            {{ entry.object_repr }}
+          {% else %}
+            <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+          {% endif %}
+          {% if entry.content_type %}<span class="mini quiet">{{ entry.content_type.name|capfirst }}</span>{% else %}<span class="mini quiet">{% translate 'Unknown content' %}</span>{% endif %}
+        </li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
