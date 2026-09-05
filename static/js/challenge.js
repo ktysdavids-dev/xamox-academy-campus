@@ -61,7 +61,7 @@
     if(name==='correct') confetti(22);
   }
   const result=document.querySelector('[data-result-sfx]');
-  if(result&&result.dataset.resultSfx==='reward'){setTimeout(()=>play('reward'),150);confetti(34)}
+  if(result){const outcome=result.dataset.resultSfx||'wrong';setTimeout(()=>play(outcome),150);if(outcome==='reward') confetti(34)}
 
   const speed=document.querySelector('[data-speed-game]');
   if(speed){
