@@ -104,6 +104,8 @@ EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "1") == "1"
 EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "0") == "1"
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "20"))
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
+CF_STREAM_API_TOKEN = os.getenv("CF_STREAM_API_TOKEN", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Xamox Academy <info@ktysdavids.com>")
 
 LOGGING = {

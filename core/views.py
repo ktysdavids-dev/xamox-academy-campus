@@ -21,12 +21,14 @@ from django.views.decorators.http import require_POST
 from django.views.static import serve
 
 from .decorators import staff_required
-from .forms import AcceptInvitationForm, InviteSeatForm, PostPurchaseForm, StudentCreateForm
-from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Purchase, Resource, SeatInvitation
+from .forms import AcceptInvitationForm, InviteSeatForm, LessonForm, PostPurchaseForm, ResourceForm, StudentCreateForm
+from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Module, Purchase, Resource, SeatInvitation
 from .services import (
     accept_seat_invitation,
     course_progress,
     ensure_access_email,
+    get_active_course,
+    get_stream_iframe_src,
     invite_second_seat,
     process_paid_session,
     seats_status,
@@ -113,8 +115,14 @@ def lesson_detail(request, lesson_id):
         user=request.user, action="lesson_viewed", metadata={"lesson_id": lesson.id},
         ip_address=request.META.get("REMOTE_ADDR") or None,
     )
+    stream_src = None
+    stream_error = False
+    if lesson.cf_stream_uid:
+        stream_src = get_stream_iframe_src(lesson.cf_stream_uid)
+        stream_error = stream_src is None
     return render(request, "core/lesson_detail.html", {
         "lesson": lesson, "progress": progress, "resources": lesson.resources.filter(published=True),
+        "stream_src": stream_src, "stream_error": stream_error,
     })
 
 
@@ -305,6 +313,103 @@ def admin_enroll_student(request, user_id):
         enrollment.save()
     messages.success(request, f"{student.email} matriculado en {course.title}")
     return redirect("admin_student_detail", user_id=student.id)
+
+
+
+# ---------------------------------------------------------------------------
+# Panel de contenido: clases y recursos (sustituye depender de Django Admin)
+# ---------------------------------------------------------------------------
+@staff_required
+def admin_content(request):
+    course = get_active_course()
+    if not course:
+        raise Http404
+    modules = course.modules.order_by("position").prefetch_related("lessons__resources")
+    return render(request, "core/admin_content.html", {"course": course, "modules": modules})
+
+
+@staff_required
+def admin_lesson_create(request, module_id):
+    module = get_object_or_404(Module, id=module_id)
+    if request.method == "POST":
+        form = LessonForm(request.POST, request.FILES)
+        if form.is_valid():
+            lesson = form.save(commit=False)
+            lesson.module = module
+            last_position = module.lessons.count()
+            lesson.position = last_position + 1
+            lesson.save()
+            messages.success(request, f"Clase «{lesson.title}» creada.")
+            return redirect("admin_lesson_edit", lesson_id=lesson.id)
+    else:
+        form = LessonForm()
+    return render(request, "core/admin_lesson_form.html", {"form": form, "module": module, "lesson": None})
+
+
+@staff_required
+def admin_lesson_edit(request, lesson_id):
+    lesson = get_object_or_404(Lesson.objects.select_related("module"), id=lesson_id)
+    if request.method == "POST":
+        form = LessonForm(request.POST, request.FILES, instance=lesson)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Clase actualizada.")
+            return redirect("admin_lesson_edit", lesson_id=lesson.id)
+    else:
+        form = LessonForm(instance=lesson)
+    resource_form = ResourceForm()
+    return render(request, "core/admin_lesson_form.html", {
+        "form": form, "module": lesson.module, "lesson": lesson,
+        "resources": lesson.resources.order_by("position"), "resource_form": resource_form,
+    })
+
+
+@staff_required
+@require_POST
+def admin_lesson_toggle_publish(request, lesson_id):
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    lesson.published = not lesson.published
+    lesson.save(update_fields=["published", "updated_at"])
+    messages.success(request, f"Clase {'publicada' if lesson.published else 'ocultada'}.")
+    return redirect("admin_content")
+
+
+@staff_required
+@require_POST
+def admin_lesson_delete(request, lesson_id):
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    module_id = lesson.module_id
+    lesson.delete()
+    messages.success(request, "Clase eliminada.")
+    return redirect("admin_content")
+
+
+@staff_required
+@require_POST
+def admin_resource_create(request, lesson_id):
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    form = ResourceForm(request.POST, request.FILES)
+    if form.is_valid():
+        resource = form.save(commit=False)
+        resource.lesson = lesson
+        resource.position = lesson.resources.count() + 1
+        resource.save()
+        messages.success(request, f"Recurso «{resource.title}» añadido.")
+    else:
+        messages.error(request, "Revisa el recurso: " + " / ".join(
+            f"{field}: {', '.join(errs)}" for field, errs in form.errors.items()
+        ))
+    return redirect("admin_lesson_edit", lesson_id=lesson.id)
+
+
+@staff_required
+@require_POST
+def admin_resource_delete(request, resource_id):
+    resource = get_object_or_404(Resource, id=resource_id)
+    lesson_id = resource.lesson_id
+    resource.delete()
+    messages.success(request, "Recurso eliminado.")
+    return redirect("admin_lesson_edit", lesson_id=lesson_id)
 
 
 def activate_account(request, uidb64, token):

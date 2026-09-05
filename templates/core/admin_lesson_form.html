@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{% if lesson %}Editar clase{% else %}Nueva clase{% endif %} · Xamox Academy{% endblock %}
+{% block content %}
+<section class="page-shell narrow">
+  <a class="back" href="{% url 'admin_content' %}">← Contenido</a>
+  <div class="eyebrow">MÓDULO {{ module.position }} · {{ module.title }}</div>
+  <h1>{% if lesson %}Editar clase{% else %}Nueva clase{% endif %}</h1>
+  <p>Sube el vídeo (o pega su URL), define duración y publícala cuando esté lista.</p>
+
+  <form method="post" enctype="multipart/form-data" class="form-grid">
+    {% csrf_token %}
+    <label>Título{{ form.title }}</label>
+    {% if form.title.errors %}<div class="error-box">{{ form.title.errors.0 }}</div>{% endif %}
+
+    <label>Descripción{{ form.description }}</label>
+
+    <label>Duración (minutos){{ form.duration_minutes }}</label>
+
+    <div class="stream-callout">
+      <strong>Recomendado para grabaciones largas (ej. 3h)</strong>
+      <p>Sube el vídeo en <a href="https://dash.cloudflare.com/?to=/:account/stream" target="_blank">el dashboard de Cloudflare Stream</a> (drag &amp; drop, aguanta archivos grandes) y pega aquí el <b>Video UID</b> que te da.</p>
+      <label>{{ form.cf_stream_uid.label }}{{ form.cf_stream_uid }}</label>
+      {% if form.cf_stream_uid.errors %}<div class="error-box">{{ form.cf_stream_uid.errors.0 }}</div>{% endif %}
+    </div>
+
+    <label>{{ form.video_url.label }}{{ form.video_url }}</label>
+    <label>{{ form.video_file.label }}{{ form.video_file }}</label>
+    {% if form.video_file.errors %}<div class="error-box">{{ form.video_file.errors.0 }}</div>{% endif %}
+    {% if lesson.video_file %}<p class="hint">Archivo actual: {{ lesson.video_file.name }} (sube uno nuevo para reemplazarlo)</p>{% endif %}
+    {% if lesson.cf_stream_uid %}<p class="hint">Cloudflare Stream UID actual: {{ lesson.cf_stream_uid }}</p>{% endif %}
+    {% if form.non_field_errors %}<div class="error-box">{{ form.non_field_errors.0 }}</div>{% endif %}
+
+    <label>{{ form.release_at.label }}{{ form.release_at }}</label>
+
+    <label class="radio-row">{{ form.published }} <span>Publicar ya (visible para alumnos matriculados)</span></label>
+
+    <button class="btn primary btn-wide" type="submit">{% if lesson %}Guardar cambios{% else %}Crear clase →{% endif %}</button>
+  </form>
+
+  {% if lesson %}
+    <div class="panel" style="margin-top:26px">
+      <div class="panel-head"><div><span class="eyebrow">RECURSOS</span><h2>Materiales de esta clase</h2></div></div>
+      {% for resource in resources %}
+        <div class="content-row">
+          <div class="content-row-main">
+            <div>
+              <strong>{{ resource.title }}</strong>
+              <small>{{ resource.get_resource_type_display }} · {% if resource.published %}publicado{% else %}oculto{% endif %}</small>
+            </div>
+          </div>
+          <div class="content-row-actions">
+            {% if resource.file %}<a class="btn secondary btn-sm" href="{{ resource.file.url }}" target="_blank">Ver</a>{% elif resource.external_url %}<a class="btn secondary btn-sm" href="{{ resource.external_url }}" target="_blank">Abrir</a>{% endif %}
+            <form method="post" action="{% url 'admin_resource_delete' resource.id %}" onsubmit="return confirm('¿Eliminar este recurso?');">
+              {% csrf_token %}
+              <button class="btn secondary btn-sm" type="submit">Eliminar</button>
+            </form>
+          </div>
+        </div>
+      {% empty %}
+        <p class="panel-empty">Aún no hay recursos en esta clase.</p>
+      {% endfor %}
+
+      <form method="post" action="{% url 'admin_resource_create' lesson.id %}" enctype="multipart/form-data" class="form-grid" style="margin-top:18px">
+        {% csrf_token %}
+        <label>Título del recurso{{ resource_form.title }}</label>
+        <label>Tipo{{ resource_form.resource_type }}</label>
+        <label>Archivo (PDF, doc, imagen...){{ resource_form.file }}</label>
+        <label>O enlace externo{{ resource_form.external_url }}</label>
+        <label class="radio-row">{{ resource_form.published }} <span>Publicado</span></label>
+        <button class="btn secondary btn-wide" type="submit">+ Añadir recurso</button>
+      </form>
+    </div>
+  {% else %}
+    <p class="hint" style="margin-top:18px">Guarda la clase primero para poder adjuntar recursos.</p>
+  {% endif %}
+</section>
+{% endblock %}

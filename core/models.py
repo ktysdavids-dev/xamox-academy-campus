@@ -48,6 +48,10 @@ class Lesson(TimestampedModel):
     duration_minutes = models.PositiveIntegerField(default=0)
     video_url = models.URLField(blank=True, help_text="URL privada o embed de la grabación")
     video_file = models.FileField(upload_to="lessons/videos/%Y/%m/", blank=True, null=True)
+    cf_stream_uid = models.CharField(
+        max_length=64, blank=True,
+        help_text="UID del vídeo en Cloudflare Stream (recomendado para grabaciones largas, ej. 3h)",
+    )
     published = models.BooleanField(default=False)
     release_at = models.DateTimeField(blank=True, null=True)
     class Meta:

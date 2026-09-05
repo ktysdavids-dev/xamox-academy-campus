@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Contenido · Administración · Xamox Academy{% endblock %}
+{% block content %}
+<section class="page-shell admin-shell">
+  <div class="admin-head">
+    <div>
+      <a class="back" href="{% url 'admin_dashboard' %}">← Administración</a>
+      <div class="eyebrow">CONTENIDO</div>
+      <h1>{{ course.title }}</h1>
+      <p>Sube grabaciones, adjunta recursos y publica cada clase cuando esté lista. Solo verán la clase los alumnos con matrícula activa.</p>
+    </div>
+  </div>
+
+  {% for module in modules %}
+    <section class="panel content-module">
+      <div class="panel-head">
+        <div><span class="eyebrow">MÓDULO {{ module.position }}</span><h2>{{ module.title }}</h2></div>
+        <a class="btn secondary" href="{% url 'admin_lesson_create' module.id %}">+ Nueva clase</a>
+      </div>
+
+      {% for lesson in module.lessons.all %}
+        <div class="content-row">
+          <div class="content-row-main">
+            <span class="lesson-number">{{ lesson.position|stringformat:"02d" }}</span>
+            <div>
+              <strong>{{ lesson.title }}</strong>
+              <small>
+                {% if lesson.published %}<span class="tag tag-live">● Publicada</span>{% else %}<span class="tag tag-draft">○ Borrador</span>{% endif %}
+                {% if lesson.duration_minutes %} · {{ lesson.duration_minutes }} min{% endif %}
+                {% if lesson.cf_stream_uid %} · vídeo en Cloudflare Stream{% elif lesson.video_file %} · vídeo subido{% elif lesson.video_url %} · vídeo por URL{% else %} · sin vídeo{% endif %}
+                · {{ lesson.resources.count }} recurso{{ lesson.resources.count|pluralize }}
+                {% if lesson.release_at %} · se publica {{ lesson.release_at|date:"d/m/Y H:i" }}{% endif %}
+              </small>
+            </div>
+          </div>
+          <div class="content-row-actions">
+            <a class="btn secondary btn-sm" href="{% url 'admin_lesson_edit' lesson.id %}">Editar</a>
+            <form method="post" action="{% url 'admin_lesson_toggle_publish' lesson.id %}">
+              {% csrf_token %}
+              <button class="btn secondary btn-sm" type="submit">{% if lesson.published %}Ocultar{% else %}Publicar{% endif %}</button>
+            </form>
+          </div>
+        </div>
+      {% empty %}
+        <p class="panel-empty">Este módulo aún no tiene clases.</p>
+      {% endfor %}
+    </section>
+  {% endfor %}
+</section>
+{% endblock %}

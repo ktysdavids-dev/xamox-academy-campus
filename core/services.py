@@ -1,6 +1,8 @@
 import logging
 import secrets
+import time
 
+import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -30,6 +32,40 @@ def course_progress(user, course):
         return 0
     completed = LessonProgress.objects.filter(user=user, lesson__in=lessons, completed=True).count()
     return round((completed / total) * 100)
+
+
+# ---------------------------------------------------------------------------
+# Cloudflare Stream: vídeo largo servido fuera de Railway (subida y
+# reproducción no pasan por nuestro Gunicorn de un solo worker).
+# ---------------------------------------------------------------------------
+def get_stream_iframe_src(cf_stream_uid, valid_hours=4):
+    """Pide a Cloudflare un token de reproducción firmado (de un solo uso,
+    caduca en `valid_hours`) y devuelve la URL del iframe privado. Devuelve
+    None si Cloudflare no está configurado o falla la llamada."""
+    if not cf_stream_uid:
+        return None
+    if not settings.CF_ACCOUNT_ID or not settings.CF_STREAM_API_TOKEN:
+        logger.error("Cloudflare Stream no configurado: faltan CF_ACCOUNT_ID/CF_STREAM_API_TOKEN")
+        return None
+
+    url = f"https://api.cloudflare.com/client/v4/accounts/{settings.CF_ACCOUNT_ID}/stream/{cf_stream_uid}/token"
+    try:
+        response = requests.post(
+            url,
+            headers={"Authorization": f"Bearer {settings.CF_STREAM_API_TOKEN}"},
+            json={"exp": int(time.time()) + valid_hours * 3600},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+        if not data.get("success"):
+            logger.error("Cloudflare Stream token rechazado: %s", data.get("errors"))
+            return None
+        token = data["result"]["token"]
+        return f"https://iframe.videodelivery.net/{token}"
+    except Exception:
+        logger.exception("Fallo pidiendo token de Cloudflare Stream para uid=%s", cf_stream_uid)
+        return None
 
 
 # ---------------------------------------------------------------------------

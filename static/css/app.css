@@ -13,3 +13,21 @@
 .plan-choice .radio-row{display:flex;align-items:center;gap:10px;padding:9px 0;color:#e7edf5;font-size:11px;}
 .plan-choice input[type=radio]{width:18px;height:18px;min-height:18px;padding:0;margin:0;flex:none;accent-color:#d7b15a;}
 #guest-fields{margin-top:6px;}
+
+/* --- Panel de contenido (clases/recursos) --- */
+.content-module{margin-bottom:20px;}
+.content-row{min-height:60px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--line);}
+.content-row-main{display:flex;align-items:baseline;gap:14px;}
+.content-row-main strong{font-size:12px;color:#e7edf5;}
+.content-row-main small{display:block;margin-top:4px;color:#8391a4;font-size:9px;}
+.content-row-actions{display:flex;gap:8px;flex:none;}
+.content-row-actions form{margin:0;}
+.btn-sm{min-height:32px;padding:0 12px;font-size:9px;}
+.tag{font-family:'JBM';font-weight:600;letter-spacing:.06em;}
+.tag-live{color:#79c496;}
+.tag-draft{color:#8391a4;}
+.hint{color:#718096;font-size:9.5px;margin-top:6px;}
+.stream-callout{border:1px solid rgba(215,177,90,.3);background:rgba(215,177,90,.06);border-radius:10px;padding:14px 16px;margin:4px 0;}
+.stream-callout strong{display:block;color:#efcf7c;font-size:10.5px;margin-bottom:4px;}
+.stream-callout p{color:#a7b2c1;font-size:9.5px;line-height:1.5;margin-bottom:8px;}
+.stream-callout p a{color:#efcf7c;}
