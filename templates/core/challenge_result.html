@@ -1,30 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Resultado · Xamox Challenge{% endblock %}
+{% block title %}Resultado · Xamox Arena{% endblock %}
 {% block content %}
 <section class="page-shell challenge-shell">
-  <a class="back" href="{% url 'challenge_hub' %}">← Xamox Challenge</a>
+  <div class="arena-topline"><a class="back" href="{% url 'challenge_hub' %}">← Volver a Xamox Arena</a><a class="back subtle" href="{% url 'dashboard' %}">Mi Campus</a></div>
   <div class="result-hero {% if attempt.passed %}passed{% endif %}">
-    <div><div class="eyebrow">RESULTADO</div><h1>{% if attempt.passed %}Reto superado{% else %}Sigue entrenando{% endif %}</h1><p>{{ attempt.challenge.title }} · Módulo {{ attempt.challenge.module.position }}</p></div>
-    <div class="result-score"><strong>{{ attempt.percent }}%</strong><span>{{ attempt.score }}/{{ attempt.max_score }} puntos</span><small>+{{ attempt.xp_earned }} XP</small></div>
+    <div><div class="eyebrow">{{ attempt.challenge.game_icon }} RESULTADO · {{ attempt.challenge.game_label }}</div><h1>{% if attempt.passed %}Reto superado{% else %}Sigue entrenando{% endif %}</h1><p>{{ attempt.challenge.title }} · Módulo {{ attempt.challenge.module.position }}</p></div>
+    <div class="result-score"><strong>{{ attempt.percent }}%</strong><span>{{ attempt.score }}/{{ attempt.max_score }} puntos</span><small>+{{ attempt.xp_earned }} XP · {{ elapsed }} s</small></div>
   </div>
 
-  {% if earned_badges %}
-    <div class="achievement-strip">{% for item in earned_badges %}<div class="achievement-chip"><span>{{ item.achievement.icon }}</span><div><strong>Nueva insignia: {{ item.achievement.name }}</strong><small>{{ item.achievement.description }}</small></div></div>{% endfor %}</div>
-  {% endif %}
+  {% if earned_badges %}<div class="achievement-strip">{% for item in earned_badges %}<div class="achievement-chip"><span>{{ item.achievement.icon }}</span><div><strong>Nueva insignia: {{ item.achievement.name }}</strong><small>{{ item.achievement.description }}</small></div></div>{% endfor %}</div>{% endif %}
 
   <div class="result-summary"><div><span>Estado</span><strong>{% if attempt.passed %}SUPERADO{% else %}NO SUPERADO{% endif %}</strong></div><div><span>XP total</span><strong>{{ xp }}</strong></div><div><span>Objetivo</span><strong>{{ attempt.challenge.pass_percent }}%</strong></div></div>
 
-  <div class="review-list">
-    {% for row in rows %}
-      <article class="review-card {% if row.question.question_type != 'text' %}{% if row.is_correct %}correct{% else %}wrong{% endif %}{% endif %}">
-        <div class="quiz-question-head"><span>Pregunta {{ forloop.counter }} · {{ row.question.category|default:"General" }}</span><b>{% if row.question.question_type == 'text' %}PRÁCTICA{% elif row.is_correct %}✓ CORRECTA{% else %}✕ REVISAR{% endif %}</b></div>
-        <h2>{{ row.question.prompt }}</h2>
-        {% if row.question.question_type == 'text' %}<div class="answer-box"><span>Tu respuesta</span><p>{{ row.text_answer|default:"Sin respuesta" }}</p></div>{% elif row.selected_option %}<div class="answer-box"><span>Tu respuesta</span><p>{{ row.selected_option.text }}</p></div>{% endif %}
-        {% if row.question.explanation %}<div class="explanation"><span>CLAVE PROFESIONAL</span><p>{{ row.question.explanation }}</p></div>{% endif %}
-        {% if row.question.question_type == 'text' and row.question.model_answer %}<details><summary>Ver solución profesional</summary><p>{{ row.question.model_answer }}</p></details>{% endif %}
-      </article>
-    {% endfor %}
+  <div class="result-grid">
+    <div class="review-list">
+      {% for row in rows %}
+        <article class="review-card {% if row.question.question_type != 'text' %}{% if row.is_correct %}correct{% else %}wrong{% endif %}{% endif %}">
+          <div class="quiz-question-head"><span>Prueba {{ forloop.counter }} · {{ row.question.category|default:"General" }}</span><b>{% if row.question.question_type == 'text' %}LAB{% elif row.is_correct %}✓ CORRECTA{% else %}✕ REVISAR{% endif %}</b></div>
+          <h2>{{ row.question.prompt }}</h2>
+          {% if row.question.question_type == 'text' %}<div class="answer-box"><span>Tu solución</span><p>{{ row.text_answer|default:"Sin respuesta" }}</p></div>{% elif row.selected_option %}<div class="answer-box"><span>Tu respuesta</span><p>{{ row.selected_option.text }}</p></div>{% else %}<div class="answer-box"><span>Tu respuesta</span><p>Tiempo agotado / sin respuesta</p></div>{% endif %}
+          {% if row.question.explanation %}<div class="explanation"><span>CLAVE PROFESIONAL</span><p>{{ row.question.explanation }}</p></div>{% endif %}
+          {% if row.question.question_type == 'text' and row.question.model_answer %}<details open><summary>Solución profesional</summary><p>{{ row.question.model_answer }}</p></details>{% endif %}
+        </article>
+      {% endfor %}
+    </div>
+    <aside class="ranking-card result-ranking"><div class="ranking-head"><div><span class="eyebrow">RANKING</span><h2>Top de este juego</h2></div></div>{% for row in top_players %}<div class="rank-row {% if row.user_id == user.id %}is-me{% endif %}"><span class="rank-pos">#{{ row.rank }}</span><span class="rank-name">{{ row.display_name }}</span><strong>{{ row.best }}%</strong></div>{% empty %}<p class="muted">Aún no hay ranking.</p>{% endfor %}</aside>
   </div>
-  <a class="btn secondary btn-wide" href="{% url 'challenge_detail' attempt.challenge.id %}">Volver al reto →</a>
+  <div class="result-actions"><a class="btn secondary" href="{% url 'challenge_detail' attempt.challenge.id %}">← Volver al juego</a><a class="btn primary" href="{% url 'challenge_hub' %}">Seguir jugando →</a></div>
 </section>
 {% endblock %}
