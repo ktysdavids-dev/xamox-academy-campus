@@ -32,8 +32,15 @@ class Command(BaseCommand):
             user.is_superuser = True
             changed = True
 
-        user.set_password(password)
-        changed = True
+        # set_password() genera un hash con sal aleatoria distinto CADA VEZ,
+        # aunque la contraseña en texto plano sea la misma. Ese hash es lo
+        # que Django usa para validar las sesiones abiertas (get_session_auth_hash).
+        # Si lo tocamos en cada deploy, se cierra la sesión de todo el que
+        # tuviera el panel abierto. Por eso solo lo cambiamos si hace falta.
+        if not user.check_password(password):
+            user.set_password(password)
+            changed = True
+
         if changed:
             user.save()
 
