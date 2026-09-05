@@ -118,10 +118,10 @@
     start?.addEventListener('click',begin);
   }
 
-  /* ---------- Ruleta ---------- */
+  /* ---------- Ruleta (aguja giratoria, disco fijo) ---------- */
   const roulette=document.querySelector('[data-roulette]');
   if(roulette){
-    const wheel=document.getElementById('rouletteWheel');
+    const needle=document.getElementById('rouletteWheel'); // ahora es la AGUJA que gira
     const btn=document.getElementById('spinWheelBtn');
     const coreBtn=document.getElementById('wheelCoreBtn');
     const card=document.getElementById('questionCard');
@@ -131,23 +131,28 @@
     const sectors=[...new Set(pool)].slice(0,8);while(sectors.length<8) sectors.push('IA');
     roulette.querySelectorAll('.wheel-label').forEach((el,i)=>{el.textContent=sectors[i];el.style.setProperty('--i',i)});
     const idx=Math.max(0,sectors.indexOf(target));
-    let spinning=false;
+    let spinning=false, turns=0;
 
     const spin=()=>{
       if(spinning) return;
-      spinning=true;ctx();play('spin');roulette.classList.add('spinning');
-      if(btn){btn.disabled=true;btn.textContent='Girando…'}
-      if(coreBtn){coreBtn.disabled=true;const strong=coreBtn.querySelector('strong');if(strong) strong.textContent='...'}
+      spinning=true;turns++;ctx();play('spin');
+      roulette.classList.remove('landed');roulette.classList.add('spinning');
+      if(btn){btn.disabled=true;btn.textContent='Girando\u2026'}
+      if(coreBtn){coreBtn.disabled=true;const s=coreBtn.querySelector('strong');if(s) s.textContent='...'}
       let ticks=0;
       const tick=setInterval(()=>{play('tick');ticks++;if(ticks>30) clearInterval(tick)},120);
-      const angle=360*7 + (360-(idx*45+22.5));
-      wheel.style.transform=`rotate(${angle}deg)`;
+      // la aguja se detiene en el CENTRO del sector objetivo: idx*45 + 22.5, tras varias vueltas
+      const angle=360*(6+turns) + (idx*45 + 22.5);
+      needle.style.transform=`rotate(${angle}deg)`;
+      // resalta el sector ganador (su borde inicial esta en idx*45)
+      roulette.style.setProperty('--win', idx*45);
       setTimeout(()=>{
-        clearInterval(tick);play('reward');roulette.classList.remove('spinning');roulette.classList.add('landed');
+        clearInterval(tick);play('reward');
+        roulette.classList.remove('spinning');roulette.classList.add('landed');
         if(resultBox){resultBox.hidden=false;resultBox.querySelector('strong').textContent=target}
         if(card){card.hidden=false;card.classList.add('question-reveal');card.scrollIntoView({behavior:'smooth',block:'center'})}
-        if(btn) btn.textContent='Ruleta girada ✓';
-        if(coreBtn){const strong=coreBtn.querySelector('strong');if(strong) strong.textContent='LISTO'}
+        if(btn){btn.textContent='Ruleta girada \u2713'}
+        if(coreBtn){const s=coreBtn.querySelector('strong');if(s) s.textContent='LISTO'}
       },4800);
     };
 
