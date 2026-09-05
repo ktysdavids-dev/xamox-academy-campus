@@ -22,6 +22,7 @@
       <div class="top-actions">
         <span class="user-pill">{{ user.get_full_name|default:user.email }}</span>
         {% if user.is_staff %}
+          <a class="top-link challenge-nav" href="{% url 'challenge_hub' %}">🎮 Xamox Arena</a>
           <a class="top-link" href="{% url 'admin_dashboard' %}">Panel</a>
         {% else %}
           <a class="top-link challenge-nav" href="{% url 'challenge_hub' %}">🎮 Challenge</a>
