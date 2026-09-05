@@ -16,6 +16,9 @@ class StudentProfile(TimestampedModel):
     company = models.CharField(max_length=160, blank=True)
     active = models.BooleanField(default=True)
     notes = models.TextField(blank=True)
+    class Meta:
+        verbose_name = "Perfil de alumno"
+        verbose_name_plural = "Perfiles de alumnos"
     def __str__(self): return self.user.get_full_name() or self.user.username
 
 class Course(TimestampedModel):
@@ -28,6 +31,9 @@ class Course(TimestampedModel):
         max_length=64, blank=True,
         help_text="Price ID de Stripe (price_...) del curso completo. Necesario para que el webhook reconozca el pago.",
     )
+    class Meta:
+        verbose_name = "Curso"
+        verbose_name_plural = "Cursos"
     def save(self, *args, **kwargs):
         if not self.slug: self.slug = slugify(self.title)
         super().save(*args, **kwargs)
@@ -46,6 +52,8 @@ class Module(TimestampedModel):
     class Meta:
         ordering = ["position", "id"]
         unique_together = [("course", "position")]
+        verbose_name = "Módulo"
+        verbose_name_plural = "Módulos"
     def __str__(self): return f"{self.course.title} · {self.position}. {self.title}"
 
 class Lesson(TimestampedModel):
@@ -65,6 +73,8 @@ class Lesson(TimestampedModel):
     class Meta:
         ordering = ["position", "id"]
         unique_together = [("module", "position")]
+        verbose_name = "Clase"
+        verbose_name_plural = "Clases"
     @property
     def is_available(self): return self.published and (not self.release_at or self.release_at <= timezone.now())
     def __str__(self): return f"{self.module} · Clase {self.position}: {self.title}"
@@ -78,7 +88,10 @@ class Resource(TimestampedModel):
     external_url = models.URLField(blank=True)
     position = models.PositiveIntegerField(default=1)
     published = models.BooleanField(default=True)
-    class Meta: ordering = ["position", "id"]
+    class Meta:
+        ordering = ["position", "id"]
+        verbose_name = "Recurso"
+        verbose_name_plural = "Recursos"
     def __str__(self): return self.title
 
 class Enrollment(TimestampedModel):
@@ -88,7 +101,10 @@ class Enrollment(TimestampedModel):
     status = models.CharField(max_length=20, choices=STATUS, default="active")
     started_at = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField(blank=True, null=True)
-    class Meta: unique_together = [("user", "course")]
+    class Meta:
+        unique_together = [("user", "course")]
+        verbose_name = "Matrícula"
+        verbose_name_plural = "Matrículas"
     def __str__(self): return f"{self.user} · {self.course}"
 
 class LessonProgress(TimestampedModel):
@@ -99,7 +115,10 @@ class LessonProgress(TimestampedModel):
     completed_at = models.DateTimeField(blank=True, null=True)
     attended_live = models.BooleanField(default=False, help_text="Marcado manualmente por el admin: ¿asistió a la clase en directo?")
     attended_minutes = models.PositiveIntegerField(default=0, help_text="Minutos conectado en la clase en directo (manual, por ahora)")
-    class Meta: unique_together = [("user", "lesson")]
+    class Meta:
+        unique_together = [("user", "lesson")]
+        verbose_name = "Progreso de clase"
+        verbose_name_plural = "Progreso de clases"
     def mark_complete(self):
         self.completed = True; self.completed_at = timezone.now(); self.save()
     def __str__(self): return f"{self.user} · {self.lesson}"
@@ -119,6 +138,9 @@ class Purchase(TimestampedModel):
     course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="purchases", blank=True, null=True)
     module = models.ForeignKey(Module, on_delete=models.SET_NULL, related_name="purchases", blank=True, null=True,
                                 help_text="Solo si scope=module: qué módulo suelto se compró")
+    class Meta:
+        verbose_name = "Compra"
+        verbose_name_plural = "Compras"
     def __str__(self): return f"{self.buyer_email} · {self.status}"
 
 class ModuleAccess(TimestampedModel):
@@ -128,7 +150,10 @@ class ModuleAccess(TimestampedModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="module_access")
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name="access_grants")
     purchase = models.ForeignKey(Purchase, on_delete=models.SET_NULL, related_name="module_access", blank=True, null=True)
-    class Meta: unique_together = [("user", "module")]
+    class Meta:
+        unique_together = [("user", "module")]
+        verbose_name = "Acceso a módulo"
+        verbose_name_plural = "Accesos a módulos"
     def __str__(self): return f"{self.user} → {self.module}"
 
 class SeatInvitation(TimestampedModel):
@@ -140,6 +165,9 @@ class SeatInvitation(TimestampedModel):
     status = models.CharField(max_length=20, choices=STATUS, default="pending")
     accepted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, blank=True, null=True, related_name="accepted_seat_invitations")
     accepted_at = models.DateTimeField(blank=True, null=True)
+    class Meta:
+        verbose_name = "Invitación de plaza"
+        verbose_name_plural = "Invitaciones de plaza"
     def save(self, *args, **kwargs):
         if not self.token: self.token = secrets.token_urlsafe(32)
         super().save(*args, **kwargs)
@@ -150,4 +178,7 @@ class ActivityLog(TimestampedModel):
     action = models.CharField(max_length=120)
     metadata = models.JSONField(default=dict, blank=True)
     ip_address = models.GenericIPAddressField(blank=True, null=True)
+    class Meta:
+        verbose_name = "Registro de actividad"
+        verbose_name_plural = "Registros de actividad"
     def __str__(self): return self.action
