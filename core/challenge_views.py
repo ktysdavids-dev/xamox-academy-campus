@@ -1,24 +1,17 @@
 import random
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Max, Sum
+from django.db.models import Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import (
-    Achievement,
-    Challenge,
-    Module,
-    Question,
-    QuestionAttempt,
-    QuizAttempt,
-    StudentAchievement,
-)
-from .services import accessible_module_ids, user_can_access_module
+from .models import Achievement, Challenge, Module, QuestionAttempt, QuizAttempt, StudentAchievement
+from .services import user_can_access_module
 
 
 def _student_xp(user):
@@ -32,15 +25,12 @@ def _best_attempt(user, challenge):
 
 
 def _award_badges(user, attempt):
-    earned = []
     if attempt.passed:
         first, _ = Achievement.objects.get_or_create(
             code="primer-reto",
             defaults={"name": "Primer reto", "description": "Has superado tu primer Xamox Challenge.", "icon": "🎯", "xp_bonus": 20},
         )
-        _, created = StudentAchievement.objects.get_or_create(user=user, achievement=first)
-        if created:
-            earned.append(first)
+        StudentAchievement.objects.get_or_create(user=user, achievement=first)
 
     if attempt.passed and attempt.challenge.challenge_type == "exam":
         module_badge, _ = Achievement.objects.get_or_create(
@@ -52,10 +42,7 @@ def _award_badges(user, attempt):
                 "xp_bonus": 50,
             },
         )
-        _, created = StudentAchievement.objects.get_or_create(user=user, achievement=module_badge)
-        if created:
-            earned.append(module_badge)
-    return earned
+        StudentAchievement.objects.get_or_create(user=user, achievement=module_badge)
 
 
 @login_required
@@ -70,16 +57,12 @@ def challenge_hub(request):
             challenges = list(module.challenges.filter(published=True).order_by("position"))
             for challenge in challenges:
                 challenge.best = _best_attempt(request.user, challenge)
-                challenge.attempt_count = QuizAttempt.objects.filter(user=request.user, challenge=challenge).count()
+                challenge.attempt_count = QuizAttempt.objects.filter(user=request.user, challenge=challenge, completed_at__isnull=False).count()
             module.challenge_list = challenges
             allowed.append(module)
 
     badges = StudentAchievement.objects.filter(user=request.user).select_related("achievement").order_by("-awarded_at")
-    return render(request, "core/challenge_hub.html", {
-        "modules": allowed,
-        "xp": _student_xp(request.user),
-        "badges": badges,
-    })
+    return render(request, "core/challenge_hub.html", {"modules": allowed, "xp": _student_xp(request.user), "badges": badges})
 
 
 @login_required
@@ -126,15 +109,12 @@ def challenge_start(request, challenge_id):
 @login_required
 def challenge_play(request, attempt_id):
     attempt = get_object_or_404(
-        QuizAttempt.objects.select_related("challenge", "challenge__module", "challenge__module__course"),
-        id=attempt_id,
-        user=request.user,
+        QuizAttempt.objects.select_related("challenge", "challenge__module", "challenge__module__course"), id=attempt_id, user=request.user,
     )
     if attempt.completed_at:
         return redirect("challenge_result", attempt_id=attempt.id)
     if not user_can_access_module(request.user, attempt.challenge.module):
         raise Http404
-
     rows = attempt.answers.select_related("question").prefetch_related("question__options").order_by("id")
     return render(request, "core/challenge_play.html", {"attempt": attempt, "rows": rows})
 
@@ -144,9 +124,7 @@ def challenge_play(request, attempt_id):
 @transaction.atomic
 def challenge_submit(request, attempt_id):
     attempt = get_object_or_404(
-        QuizAttempt.objects.select_for_update().select_related("challenge", "challenge__module"),
-        id=attempt_id,
-        user=request.user,
+        QuizAttempt.objects.select_for_update().select_related("challenge", "challenge__module"), id=attempt_id, user=request.user,
     )
     if attempt.completed_at:
         return redirect("challenge_result", attempt_id=attempt.id)
@@ -183,7 +161,6 @@ def challenge_submit(request, attempt_id):
     attempt.xp_earned = attempt.challenge.xp_reward if attempt.passed else max(5, round(attempt.challenge.xp_reward * percent / 200))
     attempt.completed_at = timezone.now()
     attempt.save(update_fields=["score", "max_score", "percent", "passed", "xp_earned", "completed_at", "updated_at"])
-
     _award_badges(request.user, attempt)
     return redirect("challenge_result", attempt_id=attempt.id)
 
@@ -191,15 +168,12 @@ def challenge_submit(request, attempt_id):
 @login_required
 def challenge_result(request, attempt_id):
     attempt = get_object_or_404(
-        QuizAttempt.objects.select_related("challenge", "challenge__module"),
-        id=attempt_id,
-        user=request.user,
-        completed_at__isnull=False,
+        QuizAttempt.objects.select_related("challenge", "challenge__module"), id=attempt_id, user=request.user, completed_at__isnull=False,
     )
     rows = attempt.answers.select_related("question", "selected_option").prefetch_related("question__options").order_by("id")
     earned_badges = StudentAchievement.objects.filter(
         user=request.user,
-        awarded_at__gte=attempt.completed_at - timezone.timedelta(seconds=5),
+        awarded_at__gte=attempt.completed_at - timedelta(seconds=5),
     ).select_related("achievement")
     return render(request, "core/challenge_result.html", {
         "attempt": attempt,
