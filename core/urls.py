@@ -1,6 +1,6 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path
-from . import views
+from . import views, challenge_views
 
 urlpatterns = [
     path("", views.home, name="home"),
@@ -15,6 +15,15 @@ urlpatterns = [
     path("campus/curso/<slug:slug>/", views.course_detail, name="course_detail"),
     path("campus/clase/<int:lesson_id>/", views.lesson_detail, name="lesson_detail"),
     path("campus/clase/<int:lesson_id>/completar/", views.complete_lesson, name="complete_lesson"),
+    path("campus/challenge/", challenge_views.challenge_hub, name="challenge_hub"),
+    path("campus/challenge/ranking/", challenge_views.challenge_leaderboard, name="challenge_leaderboard"),
+    path("campus/challenge/<int:challenge_id>/", challenge_views.challenge_detail, name="challenge_detail"),
+    path("campus/challenge/<int:challenge_id>/empezar/", challenge_views.challenge_start, name="challenge_start"),
+    path("campus/challenge/intento/<int:attempt_id>/", challenge_views.challenge_play, name="challenge_play"),
+    path("campus/challenge/intento/<int:attempt_id>/respuesta/<int:row_id>/", challenge_views.challenge_answer, name="challenge_answer"),
+    path("campus/challenge/intento/<int:attempt_id>/feedback/<int:row_id>/", challenge_views.challenge_feedback, name="challenge_feedback"),
+    path("campus/challenge/intento/<int:attempt_id>/enviar/", challenge_views.challenge_submit, name="challenge_submit"),
+    path("campus/challenge/intento/<int:attempt_id>/resultado/", challenge_views.challenge_result, name="challenge_result"),
     path("media/<path:path>", views.protected_media, name="protected_media"),
     path("comprar/", views.buy_redirect, name="buy_redirect"),
     path("webhooks/stripe/", views.stripe_webhook, name="stripe_webhook"),

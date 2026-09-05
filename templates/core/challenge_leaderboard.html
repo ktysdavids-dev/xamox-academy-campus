@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Ranking · Xamox Arena{% endblock %}
+{% block content %}
+<section class="page-shell challenge-shell">
+  <div class="arena-topline"><a class="back" href="{% url 'challenge_hub' %}">← Volver a Xamox Arena</a><a class="back subtle" href="{% url 'dashboard' %}">Mi Campus</a></div>
+  <div class="challenge-hero"><div><span class="eyebrow">XAMOX ARENA · COMPETICIÓN EDUCATIVA</span><h1>Clasificación de alumnos</h1><p>El ranking premia la constancia y los retos superados. No muestra emails: solo nombres visibles del Campus.</p></div><div class="xp-card"><span>TUS XP</span><strong>{{ xp }}</strong><small>{% if my_rank %}Puesto #{{ my_rank }}{% else %}Sin posición todavía{% endif %}</small></div></div>
+  <div class="leaderboard-grid">
+    <section class="ranking-card leaderboard-full"><div class="ranking-head"><div><span class="eyebrow">GLOBAL</span><h2>Hall of Fame</h2></div></div>{% for row in leaderboard %}<div class="rank-row {% if row.user_id == user.id %}is-me{% endif %}"><span class="rank-pos">#{{ row.rank }}</span><span class="rank-name">{{ row.display_name }}{% if row.user_id == user.id %} <small>TÚ</small>{% endif %}</span><span class="rank-wins">{{ row.wins }} retos</span><strong>{{ row.xp }} XP</strong></div>{% empty %}<p class="muted">Aún no hay puntuaciones.</p>{% endfor %}</section>
+    <section class="ranking-card leaderboard-full"><div class="ranking-head"><div><span class="eyebrow">ÚLTIMOS 7 DÍAS</span><h2>Liga semanal</h2></div></div>{% for row in weekly_leaderboard %}<div class="rank-row {% if row.user_id == user.id %}is-me{% endif %}"><span class="rank-pos">#{{ row.rank }}</span><span class="rank-name">{{ row.display_name }}</span><span class="rank-wins">{{ row.wins }} retos</span><strong>{{ row.xp }} XP</strong></div>{% empty %}<p class="muted">No hay actividad esta semana.</p>{% endfor %}</section>
+  </div>
+</section>
+{% endblock %}

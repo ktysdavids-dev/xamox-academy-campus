@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#071426">
   <title>{% block title %}Xamox Academy{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <link rel="stylesheet" href="{% static 'css/challenge.css' %}">
 </head>
 <body>
   <header class="topbar">
@@ -20,7 +21,11 @@
     {% if user.is_authenticated %}
       <div class="top-actions">
         <span class="user-pill">{{ user.get_full_name|default:user.email }}</span>
-        {% if user.is_staff %}<a class="top-link" href="{% url 'admin_dashboard' %}">Panel</a>{% endif %}
+        {% if user.is_staff %}
+          <a class="top-link" href="{% url 'admin_dashboard' %}">Panel</a>
+        {% else %}
+          <a class="top-link challenge-nav" href="{% url 'challenge_hub' %}">🎮 Challenge</a>
+        {% endif %}
         <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="top-link" type="submit">Salir</button></form>
       </div>
     {% endif %}

@@ -1,1 +1,15 @@
-{% extends "base.html" %}{% block content %}<section class="page-shell"><a class="back" href="{% url 'dashboard' %}">← Mi Campus</a><div class="course-hero"><div><div class="eyebrow">XAMOX ACADEMY</div><h1>{{ course.title }}</h1><p>{{ course.description }}</p></div><div class="progress-circle"><strong>{{ progress }}%</strong><span>completado</span></div></div><div class="modules">{% for module in modules %}<section class="module-card"><div class="module-head"><span>MÓDULO {{ module.position }}</span><h2>{{ module.title }}</h2><p>{{ module.description }}</p></div><div class="lesson-list">{% for lesson in module.lessons.all %}{% if lesson.published %}<a class="lesson-row" href="{% url 'lesson_detail' lesson.id %}"><span class="lesson-number">{{ lesson.position }}</span><span class="lesson-copy"><strong>{{ lesson.title }}</strong><small>{{ lesson.duration_minutes }} min{% if lesson.id in completed_ids %} · Completada{% endif %}</small></span><span class="lesson-state">{% if lesson.id in completed_ids %}✓{% else %}→{% endif %}</span></a>{% endif %}{% empty %}<div class="lesson-empty">Las grabaciones aparecerán aquí cuando se publiquen.</div>{% endfor %}</div></section>{% endfor %}</div></section>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<section class="page-shell">
+  <a class="back" href="{% url 'dashboard' %}">← Volver a Mi Campus</a>
+  <div class="course-hero"><div><div class="eyebrow">XAMOX ACADEMY</div><h1>{{ course.title }}</h1><p>{{ course.description }}</p></div><div class="progress-circle"><strong>{{ progress }}%</strong><span>completado</span></div></div>
+  <div class="modules">
+    {% for module in modules %}
+      <section class="module-card">
+        <div class="module-head"><span>MÓDULO {{ module.position }}</span><h2>{{ module.title }}</h2><p>{{ module.description }}</p><a class="btn secondary btn-sm" href="{% url 'challenge_hub' %}">🎮 Entrenar este módulo en Xamox Arena →</a></div>
+        <div class="lesson-list">{% for lesson in module.lessons.all %}{% if lesson.published %}<a class="lesson-row" href="{% url 'lesson_detail' lesson.id %}"><span class="lesson-number">{{ lesson.position }}</span><span class="lesson-copy"><strong>{{ lesson.title }}</strong><small>{{ lesson.duration_minutes }} min{% if lesson.id in completed_ids %} · Completada{% endif %}</small></span><span class="lesson-state">{% if lesson.id in completed_ids %}✓{% else %}→{% endif %}</span></a>{% endif %}{% empty %}<div class="lesson-empty">Las grabaciones aparecerán aquí cuando se publiquen.</div>{% endfor %}</div>
+      </section>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

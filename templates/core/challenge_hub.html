@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Xamox Arena · Xamox Academy{% endblock %}
+{% block content %}
+<section class="page-shell challenge-shell arena-shell">
+  <div class="arena-topline">
+    <a class="back" href="{% url 'dashboard' %}">← Volver a Mi Campus</a>
+    <a class="btn secondary btn-sm" href="{% url 'challenge_leaderboard' %}">🏆 Ver ranking</a>
+  </div>
+
+  <div class="challenge-hero arena-hero">
+    <div>
+      <div class="eyebrow">XAMOX ARENA · APRENDE COMPITIENDO</div>
+      <h1>Tu conocimiento entra en juego.</h1>
+      <p>Ruletas, retos relámpago, laboratorios, pruebas de criterio y Boss Final. Todo sincronizado con los módulos que tienes activos en el Campus.</p>
+      <div class="arena-pills"><span>🎯 Retos diarios</span><span>⚡ XP</span><span>🏆 Ranking</span><span>🧪 Casos reales</span></div>
+    </div>
+    <div class="xp-card mega"><span>XAMOX POINTS</span><strong>{{ xp }}</strong><small>{% if my_rank %}Puesto global #{{ my_rank }}{% else %}Empieza a jugar{% endif %}</small></div>
+  </div>
+
+  {% if daily %}
+    <section class="daily-card">
+      <div class="daily-icon">{{ daily.game_icon }}</div>
+      <div class="daily-copy"><span class="eyebrow">RETO DESTACADO DE HOY</span><h2>{{ daily.title }}</h2><p>{{ daily.game_description }}</p></div>
+      <div class="daily-actions"><strong>+{{ daily.xp_reward }} XP</strong><a class="btn primary" href="{% url 'challenge_detail' daily.id %}">Jugar ahora →</a></div>
+    </section>
+  {% endif %}
+
+  <div class="arena-layout">
+    <div class="arena-main">
+      {% if badges %}
+        <div class="achievement-strip">
+          {% for item in badges %}<div class="achievement-chip"><span>{{ item.achievement.icon }}</span><div><strong>{{ item.achievement.name }}</strong><small>{{ item.achievement.description }}</small></div></div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="challenge-modules">
+        {% for module in modules %}
+          <section class="challenge-module-card">
+            <div class="challenge-module-head">
+              <div><span class="eyebrow">MÓDULO {{ module.position }} · {{ module.module_xp }} XP GANADOS</span><h2>{{ module.title }}</h2><p>{{ module.description }}</p></div>
+            </div>
+            <div class="challenge-grid">
+              {% for challenge in module.challenge_list %}
+                <article class="challenge-card mode-{{ challenge.game_mode }} {% if challenge.challenge_type == 'exam' %}challenge-exam{% endif %}">
+                  <div class="challenge-card-top"><span>{{ challenge.game_icon }} {{ challenge.game_label }}</span><b>+{{ challenge.xp_reward }} XP</b></div>
+                  <h3>{{ challenge.title }}</h3>
+                  <p>{{ challenge.description|default:challenge.game_description }}</p>
+                  <div class="challenge-meta"><span>{{ challenge.question_count }} pruebas</span><span>Meta {{ challenge.pass_percent }}%</span><span>{{ challenge.remaining }} intentos</span></div>
+                  {% if challenge.best %}<div class="challenge-best">Tu récord <strong>{{ challenge.best.percent }}%</strong>{% if challenge.best.passed %}<em>SUPERADO</em>{% endif %}</div>{% endif %}
+                  <a class="btn {% if challenge.game_mode == 'exam' %}primary{% else %}secondary{% endif %} btn-wide" href="{% url 'challenge_detail' challenge.id %}">Entrar al juego →</a>
+                </article>
+              {% endfor %}
+            </div>
+          </section>
+        {% empty %}
+          <div class="empty-card premium-empty"><span class="eyebrow">SIN JUEGOS DISPONIBLES</span><h3>Aún no tienes un módulo jugable activo.</h3><p>La Arena solo muestra juegos vinculados a módulos que forman parte de tu acceso.</p></div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <aside class="arena-sidebar">
+      <section class="ranking-card"><div class="ranking-head"><div><span class="eyebrow">CLASIFICACIÓN</span><h2>Top global</h2></div><a href="{% url 'challenge_leaderboard' %}">Ver todo</a></div>
+        {% for row in leaderboard %}<div class="rank-row {% if row.user_id == user.id %}is-me{% endif %}"><span class="rank-pos">#{{ row.rank }}</span><span class="rank-name">{{ row.display_name }}</span><strong>{{ row.xp }} XP</strong></div>{% empty %}<p class="muted">Aún no hay puntuaciones.</p>{% endfor %}
+      </section>
+      <section class="ranking-card weekly"><div class="ranking-head"><div><span class="eyebrow">LIGA SEMANAL</span><h2>Últimos 7 días</h2></div></div>
+        {% for row in weekly_leaderboard %}<div class="rank-row {% if row.user_id == user.id %}is-me{% endif %}"><span class="rank-pos">#{{ row.rank }}</span><span class="rank-name">{{ row.display_name }}</span><strong>{{ row.xp }} XP</strong></div>{% empty %}<p class="muted">Sé el primero esta semana.</p>{% endfor %}
+      </section>
+    </aside>
+  </div>
+</section>
+{% endblock %}

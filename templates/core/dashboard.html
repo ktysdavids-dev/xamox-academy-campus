@@ -3,104 +3,44 @@
 {% block content %}
 <section class="page-shell student-shell">
   <div class="student-hero">
-    <div>
-      <div class="eyebrow">MI CAMPUS</div>
-      <h1>Hola, {{ user.first_name|default:user.username }}</h1>
-      <p>Continúa tu formación, revisa tus grabaciones y descarga todos los recursos del programa.</p>
-    </div>
+    <div><div class="eyebrow">MI CAMPUS</div><h1>Hola, {{ user.first_name|default:user.username }}</h1><p>Continúa tu formación, revisa tus grabaciones, descarga recursos y entrena lo aprendido en Xamox Arena.</p></div>
     {% if next_lesson %}<a class="btn primary" href="{% url 'lesson_detail' next_lesson.id %}">Continuar formación →</a>{% endif %}
   </div>
 
-  <div class="student-summary">
-    <div><span>Programa</span><strong>IA & Marketing Digital</strong></div>
-    <div><span>Formato</span><strong>Online · En directo</strong></div>
-    <div><span>Duración</span><strong>8 semanas · 48 h</strong></div>
-    <div><span>Soporte</span><strong>Campus + recursos</strong></div>
+  <div class="student-summary"><div><span>Programa</span><strong>IA & Marketing Digital</strong></div><div><span>Formato</span><strong>Online · En directo</strong></div><div><span>Duración</span><strong>8 semanas · 48 h</strong></div><div><span>Entrenamiento</span><strong>Xamox Arena</strong></div></div>
+
+  <div class="seat-panel" style="border-color:rgba(215,177,90,.26);background:linear-gradient(135deg,rgba(215,177,90,.07),rgba(255,255,255,.02))">
+    <div class="seat-head"><span class="eyebrow">🎮 XAMOX ARENA</span><h2>Aprende compitiendo</h2></div>
+    <p>Ruletas, retos relámpago, laboratorios, Boss Final, XP e insignias. Solo se desbloquean los juegos de los módulos que forman parte de tu acceso.</p>
+    <a class="btn primary" href="{% url 'challenge_hub' %}">Entrar en Xamox Arena →</a>
   </div>
 
   {% if purchase and seat_info %}
-    <div class="seat-panel">
-      <div class="seat-head">
-        <span class="eyebrow">PROMOCIÓN 2 PERSONAS</span>
-        <h2>Tu segunda plaza <small>({{ seat_info.used }}/{{ seat_info.total }})</small></h2>
-      </div>
-      {% if seat_info.invitation and seat_info.invitation.status == "accepted" %}
-        <p class="seat-ok">Plaza activada por <strong>{{ seat_info.invitation.email }}</strong>. ¡Las dos plazas están en uso!</p>
-      {% else %}
-        {% if seat_info.invitation and seat_info.invitation.status == "pending" %}
-          <p>Invitación pendiente enviada a <strong>{{ seat_info.invitation.email }}</strong>. Puedes reenviarla o cambiar el destinatario:</p>
-        {% else %}
-          <p>Tienes una segunda plaza disponible. Invita a quien quieras y recibirá su acceso por email:</p>
-        {% endif %}
-        <form method="post" action="{% url 'invite_seat' %}" class="seat-form">
-          {% csrf_token %}
-          <input type="text" name="guest_name" placeholder="Nombre del segundo alumno" required>
-          <input type="email" name="guest_email" placeholder="Email del segundo alumno" required>
-          <button class="btn secondary" type="submit">Enviar invitación →</button>
-        </form>
+    <div class="seat-panel"><div class="seat-head"><span class="eyebrow">PROMOCIÓN 2 PERSONAS</span><h2>Tu segunda plaza <small>({{ seat_info.used }}/{{ seat_info.total }})</small></h2></div>
+      {% if seat_info.invitation and seat_info.invitation.status == "accepted" %}<p class="seat-ok">Plaza activada por <strong>{{ seat_info.invitation.email }}</strong>. ¡Las dos plazas están en uso!</p>
+      {% else %}{% if seat_info.invitation and seat_info.invitation.status == "pending" %}<p>Invitación pendiente enviada a <strong>{{ seat_info.invitation.email }}</strong>. Puedes reenviarla o cambiar el destinatario:</p>{% else %}<p>Tienes una segunda plaza disponible. Invita a quien quieras y recibirá su acceso por email:</p>{% endif %}
+        <form method="post" action="{% url 'invite_seat' %}" class="seat-form">{% csrf_token %}<input type="text" name="guest_name" placeholder="Nombre del segundo alumno" required><input type="email" name="guest_email" placeholder="Email del segundo alumno" required><button class="btn secondary" type="submit">Enviar invitación →</button></form>
       {% endif %}
     </div>
   {% endif %}
 
   {% if partial_access %}
-    <div class="seat-panel">
-      <div class="seat-head">
-        <span class="eyebrow">ACCESO POR MÓDULO</span>
-        <h2>Tus módulos sueltos</h2>
-      </div>
-      {% for access in partial_access %}
-        <div class="content-row">
-          <div class="content-row-main">
-            <div><strong>{{ access.module.title }}</strong><small>{{ access.module.course.title }}</small></div>
-          </div>
-          <div class="content-row-actions">
-            <a class="btn secondary btn-sm" href="{% url 'course_detail' access.module.course.slug %}">Entrar →</a>
-          </div>
-        </div>
-      {% endfor %}
-      <p class="hint">¿Quieres el programa completo? <a href="{% url 'buy_redirect' %}">Consulta el curso completo →</a></p>
+    <div class="seat-panel"><div class="seat-head"><span class="eyebrow">ACCESO POR MÓDULO</span><h2>Tus módulos sueltos</h2></div>
+      {% for access in partial_access %}<div class="content-row"><div class="content-row-main"><div><strong>{{ access.module.title }}</strong><small>{{ access.module.course.title }}</small></div></div><div class="content-row-actions"><a class="btn secondary btn-sm" href="{% url 'course_detail' access.module.course.slug %}">Entrar →</a></div></div>{% endfor %}
+      <p class="hint">En Xamox Arena solo podrás jugar los módulos que aparecen aquí. <a href="{% url 'challenge_hub' %}">Ir a la Arena →</a></p>
     </div>
   {% endif %}
 
   {% if purchasable_modules %}
-    <div class="seat-panel">
-      <div class="seat-head">
-        <span class="eyebrow">AMPLÍA TU FORMACIÓN</span>
-        <h2>Añade el resto del programa</h2>
-      </div>
-      <p>Estos módulos aún no están en tu cuenta. Al comprarlos se activan automáticamente, sin esperar.</p>
-      {% for module in purchasable_modules %}
-        <div class="content-row">
-          <div class="content-row-main">
-            <div><strong>{{ module.title }}</strong><small>{{ module.course.title }}{% if module.price_display %} · {{ module.price_display }}{% endif %}</small></div>
-          </div>
-          <div class="content-row-actions">
-            <a class="btn primary btn-sm" href="{{ module.stripe_payment_link }}" target="_blank" rel="noopener">Comprar →</a>
-          </div>
-        </div>
-      {% endfor %}
+    <div class="seat-panel"><div class="seat-head"><span class="eyebrow">AMPLÍA TU FORMACIÓN</span><h2>Añade el resto del programa</h2></div><p>Estos módulos aún no están en tu cuenta. Al comprarlos se activan automáticamente, incluyendo sus juegos de Xamox Arena.</p>
+      {% for module in purchasable_modules %}<div class="content-row"><div class="content-row-main"><div><strong>{{ module.title }}</strong><small>{{ module.course.title }}{% if module.price_display %} · {{ module.price_display }}{% endif %}</small></div></div><div class="content-row-actions"><a class="btn primary btn-sm" href="{{ module.stripe_payment_link }}" target="_blank" rel="noopener">Comprar →</a></div></div>{% endfor %}
     </div>
   {% endif %}
 
   <div class="section-heading"><div><span class="eyebrow">FORMACIÓN ACTIVA</span><h2>Mis programas</h2></div></div>
   <div class="course-grid premium-course-grid">
-    {% for card in cards %}
-      <article class="course-card premium-course-card">
-        {% if card.enrollment.course.cover_image %}<div class="course-cover"><img src="{{ card.enrollment.course.cover_image }}" alt="{{ card.enrollment.course.title }}"></div>{% endif %}
-        <div class="card-body">
-          <div class="course-status"><span class="status-dot"></span> PROGRAMA ACTIVO</div>
-          <h3>{{ card.enrollment.course.title }}</h3>
-          <p>{{ card.enrollment.course.description }}</p>
-          <div class="progress"><span style="width:{{ card.progress }}%"></span></div>
-          <div class="progress-label"><strong>{{ card.progress }}%</strong><span>completado</span></div>
-          <a class="btn secondary btn-wide" href="{% url 'course_detail' card.enrollment.course.slug %}">Entrar al curso →</a>
-        </div>
-      </article>
-    {% empty %}
-      {% if not partial_access %}
-        <div class="empty-card premium-empty"><span class="eyebrow">SIN MATRÍCULA ACTIVA</span><h3>Tu Campus está preparado</h3><p>Cuando se active tu acceso, el programa aparecerá aquí automáticamente.</p></div>
-      {% endif %}
-    {% endfor %}
+    {% for card in cards %}<article class="course-card premium-course-card">{% if card.enrollment.course.cover_image %}<div class="course-cover"><img src="{{ card.enrollment.course.cover_image }}" alt="{{ card.enrollment.course.title }}"></div>{% endif %}<div class="card-body"><div class="course-status"><span class="status-dot"></span> PROGRAMA ACTIVO</div><h3>{{ card.enrollment.course.title }}</h3><p>{{ card.enrollment.course.description }}</p><div class="progress"><span style="width:{{ card.progress }}%"></span></div><div class="progress-label"><strong>{{ card.progress }}%</strong><span>completado</span></div><a class="btn secondary btn-wide" href="{% url 'course_detail' card.enrollment.course.slug %}">Entrar al curso →</a></div></article>
+    {% empty %}{% if not partial_access %}<div class="empty-card premium-empty"><span class="eyebrow">SIN MATRÍCULA ACTIVA</span><h3>Tu Campus está preparado</h3><p>Cuando se active tu acceso, el programa aparecerá aquí automáticamente.</p></div>{% endif %}{% endfor %}
   </div>
 </section>
 {% endblock %}

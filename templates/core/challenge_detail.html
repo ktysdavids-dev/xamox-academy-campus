@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ challenge.title }} · Xamox Arena{% endblock %}
+{% block content %}
+<section class="page-shell narrow challenge-shell">
+  <div class="arena-topline">
+    <a class="back" href="{% url 'challenge_hub' %}">← Volver a Xamox Arena</a>
+    <a class="back subtle" href="{% url 'dashboard' %}">Mi Campus</a>
+  </div>
+
+  <div class="challenge-detail-card mode-{{ challenge.game_mode }}">
+    <div class="game-icon-xl">{{ challenge.game_icon }}</div>
+    <div class="eyebrow">MÓDULO {{ challenge.module.position }} · {{ challenge.game_label }}</div>
+    <h1>{{ challenge.title }}</h1>
+    <p>{{ challenge.description|default:challenge.game_description }}</p>
+    <div class="challenge-meta large"><span>{{ challenge.question_count }} pruebas</span><span>{{ challenge.pass_percent }}% para superar</span><span>{{ remaining }} intentos disponibles</span><span>+{{ challenge.xp_reward }} XP</span></div>
+    {% if best %}<div class="challenge-best big">Tu récord <strong>{{ best.percent }}%</strong>{% if best.passed %}<em>SUPERADO</em>{% endif %}</div>{% endif %}
+
+    <div class="game-rules">
+      {% if challenge.game_mode == 'roulette' %}<strong>🎡 Cómo se juega</strong><p>Las categorías cambian como una ruleta. Responde una prueba cada vez y recibe feedback inmediato antes del siguiente giro.</p>
+      {% elif challenge.game_mode == 'speed' %}<strong>⚡ Cómo se juega</strong><p>Tienes 25 segundos por prueba. Si superas el reto con rapidez, consigues XP extra. La precisión sigue siendo lo más importante.</p>
+      {% elif challenge.game_mode == 'lab' %}<strong>🧪 Cómo se juega</strong><p>Resuelve un caso práctico con tus propias palabras. Después verás una solución profesional para compararla con tu enfoque.</p>
+      {% elif challenge.game_mode == 'exam' %}<strong>🏆 Boss Final</strong><p>No verás pistas ni correcciones hasta terminar. Es la evaluación final del módulo.</p>
+      {% else %}<strong>🧠 Entrenamiento</strong><p>Responde una prueba cada vez. Después de cada respuesta verás la explicación profesional y podrás seguir entrenando.</p>{% endif %}
+    </div>
+
+    {% if active_attempt %}
+      <a class="btn primary btn-wide" href="{% url 'challenge_play' active_attempt.id %}">Continuar partida →</a>
+    {% elif can_attempt %}
+      <form method="post" action="{% url 'challenge_start' challenge.id %}">{% csrf_token %}<button class="btn primary btn-wide" type="submit">Empezar partida →</button></form>
+    {% else %}
+      <div class="challenge-locked">Has utilizado todos los intentos disponibles.</div>
+    {% endif %}
+  </div>
+
+  {% if top_players %}
+    <div class="panel challenge-history"><div class="panel-head"><div><span class="eyebrow">RANKING DEL JUEGO</span><h2>Mejores jugadores</h2></div></div>
+      {% for row in top_players %}<div class="rank-row {% if row.user_id == user.id %}is-me{% endif %}"><span class="rank-pos">#{{ row.rank }}</span><span class="rank-name">{{ row.display_name }}</span><strong>{{ row.best }}%</strong></div>{% endfor %}
+    </div>
+  {% endif %}
+
+  {% if attempts %}
+    <div class="panel challenge-history"><div class="panel-head"><div><span class="eyebrow">HISTORIAL</span><h2>Tus partidas</h2></div></div>
+      {% for attempt in attempts %}<a class="data-row" href="{% url 'challenge_result' attempt.id %}"><span><strong>Partida {{ forloop.counter }}</strong><small>{{ attempt.completed_at|date:"d/m/Y H:i" }}</small></span><b>{{ attempt.percent }}%</b></a>{% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
