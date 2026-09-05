@@ -15,17 +15,33 @@
   <div class="arena-progress"><span style="width:{{ progress }}%"></span></div>
 
   {% if attempt.challenge.game_mode == 'roulette' %}
-    <section class="roulette-gate" data-roulette data-target="{{ row.question.category|default:'General' }}">
-      <div class="roulette-copy"><span class="eyebrow">🎡 RULETA XAMOX</span><h2>Gira y descubre tu siguiente categoría</h2><p>La pregunta permanece oculta hasta que la ruleta termine. Cada giro activa una nueva prueba.</p></div>
-      <div class="roulette-machine">
-        <div class="roulette-pointer" aria-hidden="true"></div>
-        <div class="roulette-wheel-real" id="rouletteWheel">
-          {% for i in "12345678" %}<span class="wheel-label"></span>{% endfor %}
-          <div class="roulette-core"><span>XAMOX</span><strong>GIRAR</strong></div>
-        </div>
-        <button class="btn primary spin-button" type="button" id="spinWheelBtn">Girar ruleta 🎡</button>
+    <section class="roulette-gate roulette-v2" data-roulette data-target="{{ row.question.category|default:'General' }}">
+      <div class="roulette-copy">
+        <span class="eyebrow">🎡 RULETA XAMOX</span>
+        <h2>Gira y descubre tu siguiente categoría</h2>
+        <p>La pregunta permanece oculta hasta que la ruleta se detenga. Cada giro activa una nueva prueba.</p>
       </div>
-      <div class="roulette-result" id="rouletteResult" hidden><span>CATEGORÍA SELECCIONADA</span><strong></strong><small>Tu prueba ya está lista</small></div>
+
+      <div class="roulette-machine roulette-machine-v2">
+        <div class="roulette-pointer-v2" aria-hidden="true"><span></span></div>
+        <div class="roulette-wheel-frame">
+          <div class="roulette-wheel-real roulette-wheel-v2" id="rouletteWheel" role="img" aria-label="Ruleta Xamox con ocho categorías">
+            {% for i in "12345678" %}<span class="wheel-label wheel-label-v2"></span>{% endfor %}
+            <button class="roulette-core roulette-core-v2" type="button" id="wheelCoreBtn" aria-label="Girar ruleta">
+              <span>XAMOX</span>
+              <strong>GIRAR</strong>
+              <small>TOCA AQUÍ</small>
+            </button>
+          </div>
+        </div>
+        <button class="btn primary spin-button spin-button-v2" type="button" id="spinWheelBtn">Girar ruleta 🎡</button>
+      </div>
+
+      <div class="roulette-result roulette-result-v2" id="rouletteResult" hidden>
+        <span>CATEGORÍA SELECCIONADA</span>
+        <strong></strong>
+        <small>Tu prueba ya está lista</small>
+      </div>
     </section>
   {% endif %}
 
