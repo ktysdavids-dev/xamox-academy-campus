@@ -7,119 +7,68 @@
      (sin archivos externos: robusto, rápido de cargar, sin problemas
      de copyright, funciona offline)
      ============================================================ */
-  let audioCtx=null, masterBus=null, reverbNode=null, soundEnabled=localStorage.getItem('xamoxSound')!=='0';
+  let audioCtx=null, masterBus=null, soundEnabled=localStorage.getItem('xamoxSound')!=='0';
   const AudioCtx=window.AudioContext||window.webkitAudioContext;
-
-  function buildReverbImpulse(ctx,duration=1.6,decay=2.4){
-    const rate=ctx.sampleRate, len=Math.max(1,Math.floor(rate*duration));
-    const impulse=ctx.createBuffer(2,len,rate);
-    for(let ch=0;ch<2;ch++){
-      const data=impulse.getChannelData(ch);
-      for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);
-    }
-    return impulse;
-  }
 
   function ctx(){
     if(!AudioCtx||!soundEnabled) return null;
     if(!audioCtx){
       audioCtx=new AudioCtx();
-      masterBus=audioCtx.createGain(); masterBus.gain.value=1;
-      const compressor=audioCtx.createDynamicsCompressor();
-      compressor.threshold.value=-18; compressor.knee.value=22; compressor.ratio.value=3.2;
-      compressor.attack.value=.004; compressor.release.value=.22;
-      reverbNode=audioCtx.createConvolver();
-      reverbNode.buffer=buildReverbImpulse(audioCtx);
-      const reverbGain=audioCtx.createGain(); reverbGain.gain.value=.16;
-      masterBus.connect(compressor); compressor.connect(audioCtx.destination);
-      masterBus.connect(reverbNode); reverbNode.connect(reverbGain); reverbGain.connect(compressor);
+      masterBus=audioCtx.createGain(); masterBus.gain.value=.8;
+      masterBus.connect(audioCtx.destination);
     }
     if(audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
     return audioCtx;
   }
 
-  /* Un oscilador con envolvente ADSR suave, timbre por armónicos y salida al bus */
-  function voice(freq,{dur=.18,type='sine',vol=.09,delay=0,detune=0,attack=.01,release=null}={}){
+  /* Un tono limpio: una sola onda, envolvente simple, sin ruido ni reverb */
+  function voice(freq,{dur=.12,type='sine',vol=.08,delay=0,attack=.008}={}){
     const c=ctx(); if(!c) return;
     const o=c.createOscillator(), g=c.createGain();
-    const t=c.currentTime+delay, rel=release??dur*.75;
-    o.type=type; o.frequency.setValueAtTime(freq,t); if(detune) o.detune.setValueAtTime(detune,t);
+    const t=c.currentTime+delay;
+    o.type=type; o.frequency.setValueAtTime(freq,t);
     g.gain.setValueAtTime(.0001,t);
     g.gain.exponentialRampToValueAtTime(vol,t+attack);
-    g.gain.exponentialRampToValueAtTime(.0001,t+attack+rel);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
     o.connect(g).connect(masterBus);
-    o.start(t); o.stop(t+attack+rel+.05);
-  }
-  /* Acorde: varias voces a la vez con ligera detonación para sonar "real", no MIDI */
-  function chord(freqs,opts={}){ freqs.forEach((f,i)=>voice(f,{...opts,delay:(opts.delay||0)+i*.012,detune:(Math.random()*6-3)})); }
-  function noiseBurst(dur=.18,vol=.08,filterFreq=800,filterType='highpass'){
-    const c=ctx(); if(!c) return;
-    const len=Math.max(1,Math.floor(c.sampleRate*dur));
-    const b=c.createBuffer(1,len,c.sampleRate), data=b.getChannelData(0);
-    for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*(1-i/len);
-    const s=c.createBufferSource(), g=c.createGain(), f=c.createBiquadFilter();
-    s.buffer=b; f.type=filterType; f.frequency.value=filterFreq; g.gain.value=vol;
-    s.connect(f).connect(g).connect(masterBus); s.start();
+    o.start(t); o.stop(t+dur+.03);
   }
 
-  /* Notas musicales reales (Hz) para que los acordes sean armónicos, no pitidos random */
-  const N={C4:261.6,E4:329.6,G4:392.0,C5:523.3,E5:659.3,G5:784.0,A4:440,A5:880,D5:587.3,F5:698.5,B4:493.9};
+  /* Notas musicales reales (Do-Mi-Sol) para que suene afinado, no a pitido random */
+  const N={C4:261.6,E4:329.6,G4:392.0,C5:523.3,E5:659.3,G5:784.0,A4:440,D5:587.3};
 
   const sfx={
-    click(){voice(660,{dur:.05,type:'sine',vol:.045,attack:.002})},
+    click(){voice(600,{dur:.045,type:'sine',vol:.04})},
 
-    correct(){ // arpegio ascendente mayor, cálido
-      chord([N.C5],{dur:.16,type:'triangle',vol:.09});
-      voice(N.E5,{dur:.16,type:'triangle',vol:.09,delay:.09});
-      voice(N.G5,{dur:.26,type:'sine',vol:.1,delay:.18});
+    correct(){ // dos notas ascendentes, limpio
+      voice(N.E5,{dur:.11,type:'sine',vol:.08});
+      voice(N.G5,{dur:.16,type:'sine',vol:.08,delay:.09});
     },
 
-    wrong(){ // caída disonante corta, sin ser desagradable
-      voice(196,{dur:.2,type:'sawtooth',vol:.06,attack:.004});
-      voice(174.6,{dur:.28,type:'sawtooth',vol:.055,delay:.11,attack:.004});
-      noiseBurst(.08,.03,1200);
+    wrong(){ // una nota grave y corta, sin ruido
+      voice(220,{dur:.16,type:'sine',vol:.05});
+      voice(180,{dur:.18,type:'sine',vol:.045,delay:.1});
     },
 
-    reward(){ // fanfarria de 4 notas con cola de reverb
-      chord([N.C4,N.G4],{dur:.14,type:'triangle',vol:.07});
-      voice(N.E5,{dur:.14,type:'triangle',vol:.08,delay:.11});
-      voice(N.G5,{dur:.16,type:'triangle',vol:.08,delay:.22});
-      chord([N.C5,N.E5,N.G5],{dur:.5,type:'sine',vol:.09,delay:.34,release:.6});
+    reward(){ // tres notas ascendentes limpias
+      voice(N.C5,{dur:.12,type:'sine',vol:.08});
+      voice(N.E5,{dur:.12,type:'sine',vol:.08,delay:.1});
+      voice(N.G5,{dur:.22,type:'sine',vol:.09,delay:.2});
     },
 
-    tick(){voice(1200,{dur:.02,type:'square',vol:.02,attack:.001})},
+    tick(){voice(1000,{dur:.02,type:'sine',vol:.02})},
 
-    spin(){
-      voice(160,{dur:.3,type:'triangle',vol:.05});
-      noiseBurst(.3,.03,400,'bandpass');
-    },
+    spin(){voice(180,{dur:.18,type:'sine',vol:.04})},
 
-    lightning(){
-      noiseBurst(.2,.1,2000,'highpass');
-      voice(90,{dur:.32,type:'sawtooth',vol:.08,attack:.002});
-      voice(880,{dur:.06,type:'square',vol:.05,delay:.03});
-      voice(1400,{dur:.04,type:'square',vol:.03,delay:.05});
-    },
+    lightning(){voice(140,{dur:.14,type:'sine',vol:.06});voice(700,{dur:.05,type:'sine',vol:.04,delay:.05})},
 
-    lab(){ // timbre "científico", cristalino
-      voice(N.E4,{dur:.15,type:'sine',vol:.055});
-      voice(N.A4,{dur:.18,type:'sine',vol:.055,delay:.1});
-      voice(N.D5,{dur:.24,type:'sine',vol:.06,delay:.21,release:.35});
-    },
+    lab(){voice(N.E4,{dur:.12,type:'sine',vol:.05});voice(N.A4,{dur:.16,type:'sine',vol:.05,delay:.1})},
 
-    boss(){ // grave e imponente
-      voice(73.4,{dur:.55,type:'sawtooth',vol:.09,attack:.01});
-      voice(110,{dur:.5,type:'triangle',vol:.06,delay:.08});
-      noiseBurst(.4,.05,150,'lowpass');
-    },
+    boss(){voice(140,{dur:.3,type:'sine',vol:.07});voice(180,{dur:.28,type:'sine',vol:.05,delay:.1})},
 
-    quiz(){voice(N.A4,{dur:.09,type:'sine',vol:.05});voice(N.D5,{dur:.13,type:'sine',vol:.05,delay:.07})},
+    quiz(){voice(N.A4,{dur:.08,type:'sine',vol:.045});voice(N.D5,{dur:.11,type:'sine',vol:.045,delay:.06})},
 
-    levelup(){ // insignia nueva — más grande que reward
-      chord([N.C4,N.E4,N.G4],{dur:.18,type:'triangle',vol:.08});
-      chord([N.C5,N.E5,N.G5],{dur:.5,type:'sine',vol:.1,delay:.22,release:.7});
-      voice(N.C5*2,{dur:.4,type:'sine',vol:.04,delay:.3,release:.6});
-    }
+    levelup(){voice(N.C5,{dur:.11,type:'sine',vol:.08});voice(N.E5,{dur:.11,type:'sine',vol:.08,delay:.09});voice(N.G5,{dur:.2,type:'sine',vol:.09,delay:.18})}
   };
   function play(name){try{(sfx[name]||sfx.click)();}catch(e){}}
 
