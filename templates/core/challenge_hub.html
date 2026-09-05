@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Xamox Challenge · Xamox Academy{% endblock %}
+{% block content %}
+<section class="page-shell challenge-shell">
+  <a class="back" href="{% url 'dashboard' %}">← Mi Campus</a>
+  <div class="challenge-hero">
+    <div>
+      <div class="eyebrow">XAMOX CHALLENGE</div>
+      <h1>Pon a prueba lo aprendido.</h1>
+      <p>Retos, examen final, XP e insignias para convertir conocimiento en capacidad real.</p>
+    </div>
+    <div class="xp-card"><span>XP TOTAL</span><strong>{{ xp }}</strong><small>Xamox Points</small></div>
+  </div>
+
+  {% if badges %}
+    <div class="achievement-strip">
+      {% for item in badges %}
+        <div class="achievement-chip"><span>{{ item.achievement.icon }}</span><div><strong>{{ item.achievement.name }}</strong><small>{{ item.achievement.description }}</small></div></div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="challenge-modules">
+    {% for module in modules %}
+      <section class="challenge-module-card">
+        <div class="challenge-module-head">
+          <div><span class="eyebrow">MÓDULO {{ module.position }}</span><h2>{{ module.title }}</h2><p>{{ module.description }}</p></div>
+        </div>
+        <div class="challenge-grid">
+          {% for challenge in module.challenge_list %}
+            <article class="challenge-card {% if challenge.challenge_type == 'exam' %}challenge-exam{% endif %}">
+              <div class="challenge-card-top"><span>{{ challenge.get_challenge_type_display }}</span><b>+{{ challenge.xp_reward }} XP</b></div>
+              <h3>{{ challenge.title }}</h3>
+              <p>{{ challenge.description }}</p>
+              <div class="challenge-meta"><span>{{ challenge.question_count }} preguntas</span><span>Aprueba con {{ challenge.pass_percent }}%</span><span>{{ challenge.attempt_count }}/{{ challenge.max_attempts }} intentos</span></div>
+              {% if challenge.best %}<div class="challenge-best">Mejor nota <strong>{{ challenge.best.percent }}%</strong>{% if challenge.best.passed %}<em>SUPERADO</em>{% endif %}</div>{% endif %}
+              <a class="btn {% if challenge.challenge_type == 'exam' %}primary{% else %}secondary{% endif %} btn-wide" href="{% url 'challenge_detail' challenge.id %}">Entrar al reto →</a>
+            </article>
+          {% endfor %}
+        </div>
+      </section>
+    {% empty %}
+      <div class="empty-card premium-empty"><span class="eyebrow">PRÓXIMAMENTE</span><h3>Los retos aparecerán aquí.</h3><p>Activa el contenido desde Administración.</p></div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
