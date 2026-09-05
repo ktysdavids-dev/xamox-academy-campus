@@ -79,6 +79,29 @@ def get_partial_access_summary(user):
     )
 
 
+def get_purchasable_modules(user):
+    """Módulos que el alumno TODAVÍA NO tiene (ni por Enrollment completo ni
+    por ModuleAccess) en cursos donde SÍ tiene al menos un módulo suelto, y
+    que tienen un link de compra configurado. Para el botón 'Comprar' en el
+    dashboard."""
+    full_course_ids = set(Enrollment.objects.filter(user=user, status="active").values_list("course_id", flat=True))
+    owned_module_ids = set(ModuleAccess.objects.filter(user=user).values_list("module_id", flat=True))
+    partial_course_ids = set(
+        ModuleAccess.objects.filter(user=user)
+        .exclude(module__course_id__in=full_course_ids)
+        .values_list("module__course_id", flat=True)
+    )
+    if not partial_course_ids:
+        return Module.objects.none()
+    return (
+        Module.objects.filter(course_id__in=partial_course_ids, published=True)
+        .exclude(id__in=owned_module_ids)
+        .exclude(stripe_payment_link="")
+        .select_related("course")
+        .order_by("course_id", "position")
+    )
+
+
 def get_student_accessible_lessons(student):
     """Todas las clases (publicadas) a las que el alumno tiene acceso, sea
     por Enrollment completo o por ModuleAccess suelto. Para el panel de

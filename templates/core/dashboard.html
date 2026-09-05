@@ -62,6 +62,26 @@
     </div>
   {% endif %}
 
+  {% if purchasable_modules %}
+    <div class="seat-panel">
+      <div class="seat-head">
+        <span class="eyebrow">AMPLÍA TU FORMACIÓN</span>
+        <h2>Añade el resto del programa</h2>
+      </div>
+      <p>Estos módulos aún no están en tu cuenta. Al comprarlos se activan automáticamente, sin esperar.</p>
+      {% for module in purchasable_modules %}
+        <div class="content-row">
+          <div class="content-row-main">
+            <div><strong>{{ module.title }}</strong><small>{{ module.course.title }}{% if module.price_display %} · {{ module.price_display }}{% endif %}</small></div>
+          </div>
+          <div class="content-row-actions">
+            <a class="btn primary btn-sm" href="{{ module.stripe_payment_link }}" target="_blank" rel="noopener">Comprar →</a>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <div class="section-heading"><div><span class="eyebrow">FORMACIÓN ACTIVA</span><h2>Mis programas</h2></div></div>
   <div class="course-grid premium-course-grid">
     {% for card in cards %}

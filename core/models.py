@@ -49,6 +49,14 @@ class Module(TimestampedModel):
         max_length=64, blank=True,
         help_text="Price ID de Stripe (price_...) si este módulo se vende suelto.",
     )
+    stripe_payment_link = models.URLField(
+        blank=True,
+        help_text="URL del Payment Link de Stripe (buy.stripe.com/...) para el botón de compra suelta.",
+    )
+    price_display = models.CharField(
+        max_length=20, blank=True,
+        help_text="Precio a mostrar en el botón de compra, ej. '405 €'.",
+    )
     class Meta:
         ordering = ["position", "id"]
         unique_together = [("course", "position")]

@@ -33,6 +33,7 @@ from .services import (
     ensure_access_email,
     get_active_course,
     get_partial_access_summary,
+    get_purchasable_modules,
     get_stream_iframe_src,
     get_student_accessible_lessons,
     invite_second_seat,
@@ -72,10 +73,11 @@ def dashboard(request):
     purchase = _buyer_purchase(request.user)
     seat_info = seats_status(purchase) if purchase else None
     partial_access = get_partial_access_summary(request.user)
+    purchasable_modules = get_purchasable_modules(request.user)
     return render(request, "core/dashboard.html", {
         "cards": cards, "next_lesson": next_lesson,
         "purchase": purchase, "seat_info": seat_info, "invite_form": InviteSeatForm(),
-        "partial_access": partial_access,
+        "partial_access": partial_access, "purchasable_modules": purchasable_modules,
     })
 
 
