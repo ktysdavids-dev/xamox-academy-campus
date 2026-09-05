@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ attempt.challenge.title }} · Xamox Challenge{% endblock %}
+{% block content %}
+<section class="page-shell challenge-shell">
+  <a class="back" href="{% url 'challenge_detail' attempt.challenge.id %}">← Salir del reto</a>
+  <div class="challenge-play-head"><div><div class="eyebrow">XAMOX CHALLENGE</div><h1>{{ attempt.challenge.title }}</h1><p>Lee cada pregunta con atención. El examen se corrige al enviarlo.</p></div><div class="xp-card"><span>RECOMPENSA</span><strong>+{{ attempt.challenge.xp_reward }}</strong><small>XP si superas</small></div></div>
+  <form method="post" action="{% url 'challenge_submit' attempt.id %}" class="quiz-form">{% csrf_token %}
+    {% for row in rows %}
+      <article class="quiz-question">
+        <div class="quiz-question-head"><span>Pregunta {{ forloop.counter }}</span><b>{{ row.question.points }} pts</b></div>
+        <h2>{{ row.question.prompt }}</h2>
+        {% if row.question.question_type == 'text' %}
+          <textarea name="q_{{ row.question.id }}" rows="7" placeholder="Escribe aquí tu respuesta..."></textarea>
+        {% else %}
+          <div class="quiz-options">
+            {% for option in row.question.options.all %}
+              <label class="quiz-option"><input type="radio" name="q_{{ row.question.id }}" value="{{ option.id }}"><span>{{ option.text }}</span></label>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </article>
+    {% endfor %}
+    <button class="btn primary btn-wide quiz-submit" type="submit">Finalizar y corregir →</button>
+  </form>
+</section>
+{% endblock %}
