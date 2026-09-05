@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ challenge.title }} · Xamox Challenge{% endblock %}
+{% block content %}
+<section class="page-shell narrow challenge-shell">
+  <a class="back" href="{% url 'challenge_hub' %}">← Xamox Challenge</a>
+  <div class="challenge-detail-card">
+    <div class="eyebrow">MÓDULO {{ challenge.module.position }} · {{ challenge.get_challenge_type_display }}</div>
+    <h1>{{ challenge.title }}</h1>
+    <p>{{ challenge.description }}</p>
+    <div class="challenge-meta large"><span>{{ challenge.question_count }} preguntas</span><span>{{ challenge.pass_percent }}% para aprobar</span><span>{{ remaining }} intentos disponibles</span><span>+{{ challenge.xp_reward }} XP</span></div>
+    {% if best %}<div class="challenge-best big">Mejor resultado <strong>{{ best.percent }}%</strong>{% if best.passed %}<em>SUPERADO</em>{% endif %}</div>{% endif %}
+    {% if can_attempt %}
+      <form method="post" action="{% url 'challenge_start' challenge.id %}">{% csrf_token %}<button class="btn primary btn-wide" type="submit">Empezar reto →</button></form>
+    {% else %}
+      <div class="challenge-locked">Has utilizado todos los intentos disponibles.</div>
+    {% endif %}
+  </div>
+  {% if attempts %}
+    <div class="panel challenge-history"><div class="panel-head"><div><span class="eyebrow">HISTORIAL</span><h2>Tus intentos</h2></div></div>
+      {% for attempt in attempts %}<a class="data-row" href="{% url 'challenge_result' attempt.id %}"><span><strong>Intento {{ forloop.counter }}</strong><small>{{ attempt.completed_at|date:"d/m/Y H:i" }}</small></span><b>{{ attempt.percent }}%</b></a>{% endfor %}
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
