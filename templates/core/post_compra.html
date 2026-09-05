@@ -21,11 +21,29 @@
     {% elif done %}
       <div class="eyebrow">TODO LISTO</div>
       <h1>¡Gracias por tu compra!</h1>
-      <p>Tu acceso está activo. Te hemos enviado un email para crear tu contraseña y entrar al Campus.</p>
-      {% if seat_info and seat_info.total == 2 and seat_info.invitation %}
-        <p class="seat-note">Segunda plaza: hemos enviado una invitación a <strong>{{ seat_info.invitation.email }}</strong>. Plazas usadas: {{ seat_info.used }}/2.</p>
+      {% if module_only %}
+        <p>Tu acceso al módulo <strong>{{ purchase.module.title }}</strong> está activo. Te hemos enviado un email para crear tu contraseña y entrar al Campus.</p>
+        <p class="seat-note">¿Quieres el resto del programa? <a href="{% url 'buy_redirect' %}">Consulta el curso completo →</a></p>
+      {% else %}
+        <p>Tu acceso está activo. Te hemos enviado un email para crear tu contraseña y entrar al Campus.</p>
+        {% if seat_info and seat_info.total == 2 and seat_info.invitation %}
+          <p class="seat-note">Segunda plaza: hemos enviado una invitación a <strong>{{ seat_info.invitation.email }}</strong>. Plazas usadas: {{ seat_info.used }}/2.</p>
+        {% endif %}
       {% endif %}
       <a class="btn primary btn-wide" href="{{ app_url }}/login/">Ir al Campus →</a>
+
+    {% elif module_only %}
+      <div class="eyebrow">ÚLTIMO PASO</div>
+      <h1>Confirma tu nombre</h1>
+      <p>Tu pago del módulo <strong>{{ purchase.module.title }}</strong> se ha confirmado. Solo necesitamos tu nombre para dejar tu acceso listo.</p>
+
+      <form method="post" class="form-grid auth-form">
+        {% csrf_token %}
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <label>Tu nombre completo{{ form.buyer_name }}</label>
+        {% if form.buyer_name.errors %}<div class="error-box">{{ form.buyer_name.errors.0 }}</div>{% endif %}
+        <button class="btn primary btn-wide" type="submit">Activar mi acceso →</button>
+      </form>
 
     {% else %}
       <div class="eyebrow">ÚLTIMO PASO</div>

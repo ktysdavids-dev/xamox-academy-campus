@@ -21,18 +21,26 @@ from django.views.decorators.http import require_POST
 from django.views.static import serve
 
 from .decorators import staff_required
-from .forms import AcceptInvitationForm, InviteSeatForm, LessonForm, PostPurchaseForm, ResourceForm, StudentCreateForm
-from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Module, Purchase, Resource, SeatInvitation
+from .forms import (
+    AcceptInvitationForm, InviteSeatForm, LessonForm, ModuleNameForm,
+    PostPurchaseForm, ResourceForm, StudentCreateForm,
+)
+from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Module, ModuleAccess, Purchase, Resource, SeatInvitation
 from .services import (
     accept_seat_invitation,
+    accessible_module_ids,
     course_progress,
     ensure_access_email,
     get_active_course,
+    get_partial_access_summary,
     get_stream_iframe_src,
+    get_student_accessible_lessons,
     invite_second_seat,
     process_paid_session,
     seats_status,
     set_single_seat,
+    user_can_access_lesson,
+    user_can_access_module,
 )
 
 logger = logging.getLogger("core")
@@ -63,9 +71,11 @@ def dashboard(request):
 
     purchase = _buyer_purchase(request.user)
     seat_info = seats_status(purchase) if purchase else None
+    partial_access = get_partial_access_summary(request.user)
     return render(request, "core/dashboard.html", {
         "cards": cards, "next_lesson": next_lesson,
         "purchase": purchase, "seat_info": seat_info, "invite_form": InviteSeatForm(),
+        "partial_access": partial_access,
     })
 
 
@@ -93,21 +103,27 @@ def invite_seat(request):
 @login_required
 def course_detail(request, slug):
     course = get_object_or_404(Course, slug=slug, active=True)
-    get_object_or_404(Enrollment, user=request.user, course=course, status="active")
+    allowed_ids = accessible_module_ids(request.user, course)  # None = acceso completo
+    if allowed_ids is not None and not allowed_ids:
+        raise Http404
     modules = course.modules.filter(published=True).prefetch_related("lessons")
+    if allowed_ids is not None:
+        modules = modules.filter(id__in=allowed_ids)
     completed_ids = set(
         LessonProgress.objects.filter(user=request.user, completed=True).values_list("lesson_id", flat=True)
     )
     return render(request, "core/course_detail.html", {
         "course": course, "modules": modules, "completed_ids": completed_ids,
         "progress": course_progress(request.user, course),
+        "partial": allowed_ids is not None,
     })
 
 
 @login_required
 def lesson_detail(request, lesson_id):
     lesson = get_object_or_404(Lesson.objects.select_related("module", "module__course"), id=lesson_id, published=True)
-    get_object_or_404(Enrollment, user=request.user, course=lesson.module.course, status="active")
+    if not user_can_access_lesson(request.user, lesson):
+        raise Http404
     if lesson.release_at and lesson.release_at > timezone.now():
         raise Http404
     progress, _ = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
@@ -130,7 +146,8 @@ def lesson_detail(request, lesson_id):
 @require_POST
 def complete_lesson(request, lesson_id):
     lesson = get_object_or_404(Lesson, id=lesson_id, published=True)
-    get_object_or_404(Enrollment, user=request.user, course=lesson.module.course, status="active")
+    if not user_can_access_lesson(request.user, lesson):
+        raise Http404
     progress, _ = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
     progress.mark_complete()
     messages.success(request, "Clase marcada como completada")
@@ -145,12 +162,12 @@ def protected_media(request, path):
         raise Http404
 
     if not request.user.is_staff:
-        course = None
+        module = None
         lesson = Lesson.objects.select_related("module__course").filter(video_file=path, published=True).first()
         if lesson:
             if lesson.release_at and lesson.release_at > timezone.now():
                 raise Http404
-            course = lesson.module.course
+            module = lesson.module
         else:
             resource = Resource.objects.select_related("lesson__module__course").filter(file=path, published=True).first()
             if resource:
@@ -158,9 +175,9 @@ def protected_media(request, path):
                     raise Http404
                 if resource.lesson.release_at and resource.lesson.release_at > timezone.now():
                     raise Http404
-                course = resource.lesson.module.course
+                module = resource.lesson.module
 
-        if not course or not Enrollment.objects.filter(user=request.user, course=course, status="active").exists():
+        if not module or not user_can_access_module(request.user, module):
             raise Http404
 
     return serve(request, path, document_root=settings.MEDIA_ROOT, show_indexes=False)
@@ -186,26 +203,46 @@ def post_purchase(request):
 
     if session.get("payment_status") != "paid":
         return render(request, "core/post_compra.html", {"pending": True})
-    if settings.STRIPE_PAYMENT_LINK_ID and session.get("payment_link") != settings.STRIPE_PAYMENT_LINK_ID:
-        raise Http404
 
     purchase = Purchase.objects.filter(stripe_session_id=session_id).first()
     if not purchase:
         try:
-            purchase, buyer = process_paid_session(session)
+            purchase, buyer_user = process_paid_session(session)
         except Exception:
             logger.exception("No se pudo procesar la sesión pagada %s", session_id)
             return render(request, "core/post_compra.html", {"error": "Estamos registrando tu compra. Vuelve a intentarlo en un minuto."})
+    else:
+        buyer_user = User.objects.filter(email__iexact=purchase.buyer_email).first()
 
     # Aseguramos el email de acceso del comprador (best-effort, no bloquea el formulario)
-    from django.contrib.auth import get_user_model
-    buyer_user = get_user_model().objects.filter(email__iexact=purchase.buyer_email).first()
     if buyer_user:
         try:
             ensure_access_email(buyer_user, purchase)
         except Exception:
             logger.exception("Email de acceso pendiente para purchase_id=%s", purchase.id)
 
+    # --- Compra de un MÓDULO SUELTO: sin 2x1, solo confirmar el nombre ---
+    if purchase.scope == "module":
+        if request.method == "POST":
+            form = ModuleNameForm(request.POST)
+            if form.is_valid():
+                if buyer_user:
+                    from .services import _apply_name
+                    _apply_name(buyer_user, form.cleaned_data["buyer_name"])
+                    buyer_user.save(update_fields=["first_name", "last_name"])
+                purchase.buyer_name = form.cleaned_data["buyer_name"]
+                purchase.save(update_fields=["buyer_name", "updated_at"])
+                messages.success(request, "¡Listo! Tu acceso está activo.")
+                return render(request, "core/post_compra.html", {
+                    "done": True, "purchase": purchase, "module_only": True,
+                })
+        else:
+            form = ModuleNameForm(initial={"buyer_name": purchase.buyer_name})
+        return render(request, "core/post_compra.html", {
+            "form": form, "purchase": purchase, "session_id": session_id, "module_only": True,
+        })
+
+    # --- Compra del CURSO COMPLETO: formulario con opción de 2x1 (como antes) ---
     if request.method == "POST":
         form = PostPurchaseForm(request.POST, buyer_email=purchase.buyer_email)
         if form.is_valid():
@@ -294,12 +331,57 @@ def admin_student_create(request):
 @staff_required
 def admin_student_detail(request, user_id):
     student = get_object_or_404(User, id=user_id, is_staff=False)
+    lessons = get_student_accessible_lessons(student)
+    progress_by_lesson = {
+        p.lesson_id: p for p in LessonProgress.objects.filter(user=student, lesson__in=lessons)
+    }
+    last_viewed_by_lesson = {}
+    for entry in ActivityLog.objects.filter(user=student, action="lesson_viewed").order_by("created_at"):
+        lid = (entry.metadata or {}).get("lesson_id")
+        if lid:
+            last_viewed_by_lesson[lid] = entry.created_at  # se queda la última al iterar en orden ascendente
+
+    lesson_rows = []
+    for lesson in lessons:
+        lesson_rows.append({
+            "lesson": lesson,
+            "progress": progress_by_lesson.get(lesson.id),
+            "last_viewed": last_viewed_by_lesson.get(lesson.id),
+        })
+
     return render(request, "core/admin_student_detail.html", {
         "student": student,
         "enrollments": student.enrollments.select_related("course"),
-        "progress_records": LessonProgress.objects.filter(user=student).select_related("lesson", "lesson__module").order_by("-updated_at"),
+        "module_access": ModuleAccess.objects.filter(user=student).select_related("module", "module__course"),
+        "lesson_rows": lesson_rows,
         "courses": Course.objects.filter(active=True).order_by("title"),
     })
+
+
+@staff_required
+@require_POST
+def admin_student_delete(request, user_id):
+    student = get_object_or_404(User, id=user_id, is_staff=False)
+    email = student.email
+    student.delete()
+    messages.success(request, f"Alumno {email} eliminado.")
+    return redirect("admin_students")
+
+
+@staff_required
+@require_POST
+def admin_mark_attendance(request, user_id, lesson_id):
+    student = get_object_or_404(User, id=user_id, is_staff=False)
+    lesson = get_object_or_404(Lesson, id=lesson_id)
+    progress, _ = LessonProgress.objects.get_or_create(user=student, lesson=lesson)
+    progress.attended_live = request.POST.get("attended_live") == "on"
+    try:
+        progress.attended_minutes = max(0, int(request.POST.get("attended_minutes") or 0))
+    except ValueError:
+        progress.attended_minutes = 0
+    progress.save(update_fields=["attended_live", "attended_minutes", "updated_at"])
+    messages.success(request, f"Asistencia actualizada: {lesson.title}")
+    return redirect("admin_student_detail", user_id=student.id)
 
 
 @staff_required
@@ -443,8 +525,6 @@ def stripe_webhook(request):
         return HttpResponse(status=405)
     if not settings.STRIPE_WEBHOOK_SECRET:
         return JsonResponse({"error": "STRIPE_WEBHOOK_SECRET no configurado"}, status=503)
-    if not settings.STRIPE_PAYMENT_LINK_ID:
-        return JsonResponse({"error": "STRIPE_PAYMENT_LINK_ID no configurado"}, status=503)
 
     try:
         event = stripe.Webhook.construct_event(
@@ -458,8 +538,6 @@ def stripe_webhook(request):
         return HttpResponse(status=200)
 
     session = event["data"]["object"]
-    if session.get("payment_link") != settings.STRIPE_PAYMENT_LINK_ID:
-        return JsonResponse({"status": "ignored", "reason": "payment_link"}, status=200)
     if session.get("payment_status") != "paid":
         return JsonResponse({"status": "pending"}, status=200)
 
@@ -468,7 +546,11 @@ def stripe_webhook(request):
     except ValueError as exc:
         return JsonResponse({"error": str(exc)}, status=400)
     except LookupError as exc:
-        return JsonResponse({"error": str(exc)}, status=503)
+        # Price ID no registrado en Course/Module (p. ej. otro producto de
+        # Stripe ajeno al Campus). Se ignora sin marcar error para no
+        # provocar reintentos de Stripe.
+        logger.info("Webhook ignorado (price ID no reconocido por Xamox Campus): %s", exc)
+        return JsonResponse({"status": "ignored", "reason": str(exc)}, status=200)
 
     try:
         ensure_access_email(user, purchase)

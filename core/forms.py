@@ -66,6 +66,12 @@ class InviteSeatForm(forms.Form):
     guest_email = forms.EmailField(label="Email del segundo alumno")
 
 
+class ModuleNameForm(forms.Form):
+    """Post-compra para quien compró UN módulo suelto: no hay 2x1, solo se
+    confirma el nombre."""
+    buyer_name = forms.CharField(label="Tu nombre completo", max_length=180)
+
+
 class AcceptInvitationForm(forms.Form):
     full_name = forms.CharField(label="Tu nombre completo", max_length=180)
     password1 = forms.CharField(label="Contraseña", widget=forms.PasswordInput)

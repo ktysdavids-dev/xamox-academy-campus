@@ -42,6 +42,26 @@
     </div>
   {% endif %}
 
+  {% if partial_access %}
+    <div class="seat-panel">
+      <div class="seat-head">
+        <span class="eyebrow">ACCESO POR MÓDULO</span>
+        <h2>Tus módulos sueltos</h2>
+      </div>
+      {% for access in partial_access %}
+        <div class="content-row">
+          <div class="content-row-main">
+            <div><strong>{{ access.module.title }}</strong><small>{{ access.module.course.title }}</small></div>
+          </div>
+          <div class="content-row-actions">
+            <a class="btn secondary btn-sm" href="{% url 'course_detail' access.module.course.slug %}">Entrar →</a>
+          </div>
+        </div>
+      {% endfor %}
+      <p class="hint">¿Quieres el programa completo? <a href="{% url 'buy_redirect' %}">Consulta el curso completo →</a></p>
+    </div>
+  {% endif %}
+
   <div class="section-heading"><div><span class="eyebrow">FORMACIÓN ACTIVA</span><h2>Mis programas</h2></div></div>
   <div class="course-grid premium-course-grid">
     {% for card in cards %}
@@ -57,7 +77,9 @@
         </div>
       </article>
     {% empty %}
-      <div class="empty-card premium-empty"><span class="eyebrow">SIN MATRÍCULA ACTIVA</span><h3>Tu Campus está preparado</h3><p>Cuando se active tu acceso, el programa aparecerá aquí automáticamente.</p></div>
+      {% if not partial_access %}
+        <div class="empty-card premium-empty"><span class="eyebrow">SIN MATRÍCULA ACTIVA</span><h3>Tu Campus está preparado</h3><p>Cuando se active tu acceso, el programa aparecerá aquí automáticamente.</p></div>
+      {% endif %}
     {% endfor %}
   </div>
 </section>

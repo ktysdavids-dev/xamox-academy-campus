@@ -24,6 +24,10 @@ class Course(TimestampedModel):
     description = models.TextField(blank=True)
     cover_image = models.URLField(blank=True)
     active = models.BooleanField(default=True)
+    stripe_price_id = models.CharField(
+        max_length=64, blank=True,
+        help_text="Price ID de Stripe (price_...) del curso completo. Necesario para que el webhook reconozca el pago.",
+    )
     def save(self, *args, **kwargs):
         if not self.slug: self.slug = slugify(self.title)
         super().save(*args, **kwargs)
@@ -35,6 +39,10 @@ class Module(TimestampedModel):
     description = models.TextField(blank=True)
     position = models.PositiveIntegerField(default=1)
     published = models.BooleanField(default=True)
+    stripe_price_id = models.CharField(
+        max_length=64, blank=True,
+        help_text="Price ID de Stripe (price_...) si este módulo se vende suelto.",
+    )
     class Meta:
         ordering = ["position", "id"]
         unique_together = [("course", "position")]
@@ -89,6 +97,8 @@ class LessonProgress(TimestampedModel):
     completed = models.BooleanField(default=False)
     watched_seconds = models.PositiveIntegerField(default=0)
     completed_at = models.DateTimeField(blank=True, null=True)
+    attended_live = models.BooleanField(default=False, help_text="Marcado manualmente por el admin: ¿asistió a la clase en directo?")
+    attended_minutes = models.PositiveIntegerField(default=0, help_text="Minutos conectado en la clase en directo (manual, por ahora)")
     class Meta: unique_together = [("user", "lesson")]
     def mark_complete(self):
         self.completed = True; self.completed_at = timezone.now(); self.save()
@@ -96,6 +106,7 @@ class LessonProgress(TimestampedModel):
 
 class Purchase(TimestampedModel):
     STATUS = [("pending","Pendiente"),("paid","Pagada"),("refunded","Reembolsada"),("cancelled","Cancelada")]
+    SCOPE = [("full","Curso completo"),("module","Módulo suelto")]
     stripe_session_id = models.CharField(max_length=255, unique=True, blank=True, null=True)
     stripe_payment_intent = models.CharField(max_length=255, blank=True)
     buyer_email = models.EmailField()
@@ -104,8 +115,21 @@ class Purchase(TimestampedModel):
     currency = models.CharField(max_length=10, default="eur")
     seats = models.PositiveIntegerField(default=2)
     status = models.CharField(max_length=20, choices=STATUS, default="pending")
+    scope = models.CharField(max_length=10, choices=SCOPE, default="full")
     course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="purchases", blank=True, null=True)
+    module = models.ForeignKey(Module, on_delete=models.SET_NULL, related_name="purchases", blank=True, null=True,
+                                help_text="Solo si scope=module: qué módulo suelto se compró")
     def __str__(self): return f"{self.buyer_email} · {self.status}"
+
+class ModuleAccess(TimestampedModel):
+    """Acceso a UN módulo concreto (compra suelta), independiente de Enrollment
+    (que da acceso al curso completo). Un usuario puede tener Enrollment (todo)
+    y/o varios ModuleAccess (sueltos) simultáneamente."""
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="module_access")
+    module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name="access_grants")
+    purchase = models.ForeignKey(Purchase, on_delete=models.SET_NULL, related_name="module_access", blank=True, null=True)
+    class Meta: unique_together = [("user", "module")]
+    def __str__(self): return f"{self.user} → {self.module}"
 
 class SeatInvitation(TimestampedModel):
     STATUS = [("pending","Pendiente"),("accepted","Aceptada"),("revoked","Revocada")]

@@ -1,1 +1,67 @@
-{% extends "base.html" %}{% block content %}<section class="page-shell"><a class="back" href="{% url 'admin_students' %}">← Alumnos</a><div class="admin-head"><div><div class="eyebrow">ALUMNO</div><h1>{{ student.get_full_name|default:student.email }}</h1><p>{{ student.email }}</p></div></div><div class="admin-grid"><section class="panel"><h2>Matrículas</h2>{% for enrollment in enrollments %}<div class="data-row"><span><strong>{{ enrollment.course.title }}</strong><small>{{ enrollment.get_status_display }}</small></span></div>{% empty %}<p>Sin matrículas.</p>{% endfor %}<form method="post" action="{% url 'admin_enroll_student' student.id %}" class="inline-form">{% csrf_token %}<select name="course_id" required>{% for course in courses %}<option value="{{ course.id }}">{{ course.title }}</option>{% endfor %}</select><button class="btn secondary" type="submit">Matricular</button></form></section><section class="panel"><h2>Actividad formativa</h2>{% for item in progress_records %}<div class="data-row"><span><strong>{{ item.lesson.title }}</strong><small>Módulo {{ item.lesson.module.position }}</small></span><b>{% if item.completed %}✓{% else %}En curso{% endif %}</b></div>{% empty %}<p>Aún sin progreso.</p>{% endfor %}</section></div></section>{% endblock %}
+{% extends "base.html" %}
+{% block title %}{{ student.get_full_name|default:student.email }} · Xamox Academy{% endblock %}
+{% block content %}
+<section class="page-shell">
+  <a class="back" href="{% url 'admin_students' %}">← Alumnos</a>
+  <div class="admin-head">
+    <div>
+      <div class="eyebrow">ALUMNO</div>
+      <h1>{{ student.get_full_name|default:student.email }}</h1>
+      <p>{{ student.email }}{% if student.date_joined %} · Alta: {{ student.date_joined|date:"d/m/Y" }}{% endif %}</p>
+    </div>
+    <form method="post" action="{% url 'admin_student_delete' student.id %}"
+          onsubmit="return confirm('¿Eliminar a {{ student.email }}? Se borrará su cuenta, matrículas y progreso. Esta acción no se puede deshacer.');">
+      {% csrf_token %}
+      <button class="btn secondary" type="submit" style="border-color:rgba(220,90,90,.35);color:#e7a6a6;">Eliminar alumno</button>
+    </form>
+  </div>
+
+  <div class="admin-grid">
+    <section class="panel">
+      <div class="panel-head"><h2>Matrículas (curso completo)</h2></div>
+      {% for enrollment in enrollments %}
+        <div class="data-row"><span><strong>{{ enrollment.course.title }}</strong><small>{{ enrollment.get_status_display }}</small></span></div>
+      {% empty %}
+        <p class="panel-empty">Sin matrícula de curso completo.</p>
+      {% endfor %}
+      <form method="post" action="{% url 'admin_enroll_student' student.id %}" class="inline-form">
+        {% csrf_token %}
+        <select name="course_id" required>{% for course in courses %}<option value="{{ course.id }}">{{ course.title }}</option>{% endfor %}</select>
+        <button class="btn secondary" type="submit">Matricular</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Acceso por módulo (suelto)</h2></div>
+      {% for access in module_access %}
+        <div class="data-row"><span><strong>{{ access.module.title }}</strong><small>{{ access.module.course.title }}</small></span></div>
+      {% empty %}
+        <p class="panel-empty">Sin módulos sueltos.</p>
+      {% endfor %}
+    </section>
+  </div>
+
+  <div class="section-heading" style="margin-top:34px"><div><span class="eyebrow">SEGUIMIENTO</span><h2>Progreso y asistencia por clase</h2></div></div>
+  <section class="panel">
+    {% for row in lesson_rows %}
+      <div class="data-row" style="align-items:flex-start;flex-wrap:wrap;">
+        <span style="flex:1;min-width:220px;">
+          <strong>{{ row.lesson.module.position }}.{{ row.lesson.position }} · {{ row.lesson.title }}</strong>
+          <small>
+            {% if row.progress.completed %}✓ Completada{% else %}Sin completar{% endif %}
+            {% if row.last_viewed %} · Abrió el vídeo: {{ row.last_viewed|date:"d/m/Y H:i" }}{% else %} · Nunca abrió el vídeo{% endif %}
+          </small>
+        </span>
+        <form method="post" action="{% url 'admin_mark_attendance' student.id row.lesson.id %}" class="attend-form">
+          {% csrf_token %}
+          <label class="radio-row"><input type="checkbox" name="attended_live" {% if row.progress.attended_live %}checked{% endif %}> <span>Asistió en directo</span></label>
+          <input type="number" name="attended_minutes" min="0" placeholder="min." value="{{ row.progress.attended_minutes|default:'' }}">
+          <button class="btn secondary btn-sm" type="submit">Guardar</button>
+        </form>
+      </div>
+    {% empty %}
+      <p class="panel-empty">Este alumno todavía no tiene clases publicadas a las que acceder.</p>
+    {% endfor %}
+  </section>
+</section>
+{% endblock %}

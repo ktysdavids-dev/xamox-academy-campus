@@ -3,20 +3,26 @@ import secrets
 import time
 
 import requests
+import stripe
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
+from django.db.models import Q
 from django.template.loader import render_to_string
 from django.utils import timezone
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
-from .models import ActivityLog, Course, Enrollment, Lesson, LessonProgress, Purchase, SeatInvitation, StudentProfile
+from .models import (
+    ActivityLog, Course, Enrollment, Lesson, LessonProgress, Module,
+    ModuleAccess, Purchase, SeatInvitation, StudentProfile,
+)
 
 logger = logging.getLogger("core")
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 COURSE_SLUG = "ia-marketing-digital"
 
@@ -32,6 +38,62 @@ def course_progress(user, course):
         return 0
     completed = LessonProgress.objects.filter(user=user, lesson__in=lessons, completed=True).count()
     return round((completed / total) * 100)
+
+
+# ---------------------------------------------------------------------------
+# Permisos: acceso completo (Enrollment) vs. acceso a un módulo suelto
+# (ModuleAccess). Un usuario puede tener ambos a la vez; el completo siempre
+# manda.
+# ---------------------------------------------------------------------------
+def has_full_access(user, course):
+    return Enrollment.objects.filter(user=user, course=course, status="active").exists()
+
+
+def user_can_access_module(user, module):
+    if has_full_access(user, module.course):
+        return True
+    return ModuleAccess.objects.filter(user=user, module=module).exists()
+
+
+def user_can_access_lesson(user, lesson):
+    return user_can_access_module(user, lesson.module)
+
+
+def accessible_module_ids(user, course):
+    """None = acceso completo (todos los módulos). Si no, devuelve el set de
+    IDs de módulo a los que sí tiene acceso suelto (puede ser vacío)."""
+    if has_full_access(user, course):
+        return None
+    return set(ModuleAccess.objects.filter(user=user, module__course=course).values_list("module_id", flat=True))
+
+
+def get_partial_access_summary(user):
+    """Módulos con acceso suelto en cursos donde el usuario NO tiene acceso
+    completo. Para mostrar en el dashboard."""
+    full_course_ids = set(Enrollment.objects.filter(user=user, status="active").values_list("course_id", flat=True))
+    return (
+        ModuleAccess.objects.filter(user=user)
+        .exclude(module__course_id__in=full_course_ids)
+        .select_related("module", "module__course")
+        .order_by("module__course_id", "module__position")
+    )
+
+
+def get_student_accessible_lessons(student):
+    """Todas las clases (publicadas) a las que el alumno tiene acceso, sea
+    por Enrollment completo o por ModuleAccess suelto. Para el panel de
+    progreso/asistencia del admin."""
+    full_course_ids = set(
+        Enrollment.objects.filter(user=student, status="active").values_list("course_id", flat=True)
+    )
+    module_ids = set(ModuleAccess.objects.filter(user=student).values_list("module_id", flat=True))
+    return (
+        Lesson.objects.filter(published=True)
+        .filter(Q(module__course_id__in=full_course_ids) | Q(module_id__in=module_ids))
+        .select_related("module", "module__course")
+        .order_by("module__course_id", "module__position", "position")
+        .distinct()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -79,12 +141,7 @@ def _apply_name(user, full_name):
         user.last_name = parts[1][:150]
 
 
-def provision_buyer_access(purchase, buyer_name=""):
-    """Crea/actualiza el alumno comprador y activa su matrícula. Idempotente."""
-    email = (purchase.buyer_email or "").strip().lower()
-    if not email or not purchase.course:
-        raise ValueError("La compra no tiene email o curso válido")
-
+def _get_or_create_user(email, buyer_name=""):
     User = get_user_model()
     user = User.objects.filter(email__iexact=email).order_by("id").first()
     created = False
@@ -92,13 +149,22 @@ def provision_buyer_access(purchase, buyer_name=""):
         user = User(username=email[:150], email=email)
         user.set_unusable_password()
         created = True
-
     if buyer_name:
         _apply_name(user, buyer_name)
-
     user.is_active = True
     user.save()
     StudentProfile.objects.get_or_create(user=user, defaults={"active": True})
+    return user, created
+
+
+def provision_buyer_access(purchase, buyer_name=""):
+    """Crea/actualiza el alumno comprador y activa su matrícula COMPLETA (todo
+    el curso). Idempotente."""
+    email = (purchase.buyer_email or "").strip().lower()
+    if not email or not purchase.course:
+        raise ValueError("La compra no tiene email o curso válido")
+
+    user, created = _get_or_create_user(email, buyer_name)
 
     enrollment, _ = Enrollment.objects.get_or_create(
         user=user, course=purchase.course, defaults={"status": "active"}
@@ -115,19 +181,66 @@ def provision_buyer_access(purchase, buyer_name=""):
     return user
 
 
-def process_paid_session(session):
-    """Registra la compra pagada y provisiona al comprador. Reutilizable por
-    el webhook y por la página post-compra. NO envía el email (ver ensure_access_email).
-    Devuelve (purchase, user)."""
+def provision_module_access(purchase, module, buyer_name=""):
+    """Crea/actualiza el comprador y le da acceso SOLO a `module` (compra
+    suelta). No crea Enrollment de curso completo. Idempotente."""
+    email = (purchase.buyer_email or "").strip().lower()
+    if not email:
+        raise ValueError("La compra no tiene email válido")
+
+    user, created = _get_or_create_user(email, buyer_name)
+
+    access, _ = ModuleAccess.objects.get_or_create(
+        user=user, module=module, defaults={"purchase": purchase}
+    )
+    if access.purchase_id != purchase.id:
+        access.purchase = purchase
+        access.save(update_fields=["purchase", "updated_at"])
+
+    ActivityLog.objects.create(
+        user=user,
+        action="module_access_provisioned",
+        metadata={"purchase_id": purchase.id, "module_id": module.id, "new_user": created},
+    )
+    return user
+
+
+def get_purchased_stripe_price_id(session_id):
+    """Consulta a Stripe qué Price ID se compró en esta sesión (los Payment
+    Links de un solo producto tienen exactamente 1 línea)."""
+    items = stripe.checkout.Session.list_line_items(session_id, limit=10)
+    if not items.data:
+        return None
+    return items.data[0].price.id
+
+
+def process_paid_session(session, price_id=None):
+    """Registra la compra pagada y provisiona el acceso correcto: curso
+    completo si el Price ID coincide con Course.stripe_price_id, o un único
+    módulo si coincide con Module.stripe_price_id. Reutilizable por el
+    webhook y por la página post-compra. NO envía el email (ver
+    ensure_access_email). Devuelve (purchase, user).
+
+    `price_id`: para tests/simulación se puede forzar sin llamar a Stripe;
+    en producción se deja None y se resuelve vía la API de Stripe."""
     customer_details = session.get("customer_details") or {}
     email = (customer_details.get("email") or session.get("customer_email") or "").strip().lower()
     buyer_name = (customer_details.get("name") or "").strip()
     if not email:
         raise ValueError("Stripe no devolvió email del comprador")
 
-    course = get_active_course()
-    if not course:
-        raise LookupError("Curso Xamox Academy no encontrado")
+    if price_id is None:
+        price_id = get_purchased_stripe_price_id(session["id"])
+    if not price_id:
+        raise LookupError("No se pudo determinar qué producto se compró (sin line items)")
+
+    course = Course.objects.filter(stripe_price_id=price_id, active=True).first()
+    module = None if course else Module.objects.filter(stripe_price_id=price_id).first()
+    if not course and not module:
+        raise LookupError(f"Price ID de Stripe no reconocido por Xamox Campus: {price_id}")
+
+    scope = "full" if course else "module"
+    target_course = course or module.course
 
     with transaction.atomic():
         purchase, _ = Purchase.objects.update_or_create(
@@ -139,11 +252,16 @@ def process_paid_session(session):
                 "amount_cents": session.get("amount_total") or 0,
                 "currency": session.get("currency") or "eur",
                 "status": "paid",
-                "seats": 2,
-                "course": course,
+                "seats": 2 if scope == "full" else 1,
+                "scope": scope,
+                "course": target_course,
+                "module": module,
             },
         )
-        user = provision_buyer_access(purchase, buyer_name=buyer_name)
+        if scope == "full":
+            user = provision_buyer_access(purchase, buyer_name=buyer_name)
+        else:
+            user = provision_module_access(purchase, module, buyer_name=buyer_name)
     return purchase, user
 
 

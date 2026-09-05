@@ -23,4 +23,6 @@ urlpatterns = [
     path("admin-panel/alumnos/nuevo/", views.admin_student_create, name="admin_student_create"),
     path("admin-panel/alumnos/<int:user_id>/", views.admin_student_detail, name="admin_student_detail"),
     path("admin-panel/alumnos/<int:user_id>/matricular/", views.admin_enroll_student, name="admin_enroll_student"),
+    path("admin-panel/alumnos/<int:user_id>/eliminar/", views.admin_student_delete, name="admin_student_delete"),
+    path("admin-panel/alumnos/<int:user_id>/clase/<int:lesson_id>/asistencia/", views.admin_mark_attendance, name="admin_mark_attendance"),
 ]

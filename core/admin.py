@@ -1,19 +1,19 @@
 from django.contrib import admin
-from .models import StudentProfile, Course, Module, Lesson, Resource, Enrollment, LessonProgress, Purchase, SeatInvitation, ActivityLog
+from .models import StudentProfile, Course, Module, Lesson, Resource, Enrollment, LessonProgress, ModuleAccess, Purchase, SeatInvitation, ActivityLog
 
 class ModuleInline(admin.TabularInline):
     model = Module; extra = 0
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ("title","active","created_at"); prepopulated_fields = {"slug":("title",)}; inlines = [ModuleInline]
+    list_display = ("title","active","stripe_price_id","created_at"); prepopulated_fields = {"slug":("title",)}; inlines = [ModuleInline]
 
 class LessonInline(admin.TabularInline):
     model = Lesson; extra = 0
 
 @admin.register(Module)
 class ModuleAdmin(admin.ModelAdmin):
-    list_display = ("title","course","position","published"); list_filter = ("course","published"); inlines = [LessonInline]
+    list_display = ("title","course","position","published","stripe_price_id"); list_filter = ("course","published"); inlines = [LessonInline]
 
 class ResourceInline(admin.TabularInline):
     model = Resource; extra = 0
@@ -31,9 +31,16 @@ class StudentProfileAdmin(admin.ModelAdmin):
 class EnrollmentAdmin(admin.ModelAdmin):
     list_display = ("user","course","status","started_at","expires_at"); list_filter = ("status","course"); search_fields = ("user__email",)
 
+@admin.register(ModuleAccess)
+class ModuleAccessAdmin(admin.ModelAdmin):
+    list_display = ("user","module","purchase","created_at"); list_filter = ("module__course","module"); search_fields = ("user__email",)
+
 admin.site.register(Resource)
 admin.site.register(LessonProgress)
-admin.site.register(Purchase)
+@admin.register(Purchase)
+class PurchaseAdmin(admin.ModelAdmin):
+    list_display = ("buyer_email","scope","course","module","amount_cents","status","created_at")
+    list_filter = ("scope","status","course"); search_fields = ("buyer_email","stripe_session_id")
 admin.site.register(SeatInvitation)
 admin.site.register(ActivityLog)
 admin.site.site_header = "Xamox Academy · Administración"
