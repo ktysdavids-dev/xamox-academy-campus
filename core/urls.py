@@ -25,4 +25,11 @@ urlpatterns = [
     path("admin-panel/alumnos/<int:user_id>/matricular/", views.admin_enroll_student, name="admin_enroll_student"),
     path("admin-panel/alumnos/<int:user_id>/eliminar/", views.admin_student_delete, name="admin_student_delete"),
     path("admin-panel/alumnos/<int:user_id>/clase/<int:lesson_id>/asistencia/", views.admin_mark_attendance, name="admin_mark_attendance"),
+    path("admin-panel/contenido/", views.admin_content, name="admin_content"),
+    path("admin-panel/contenido/modulo/<int:module_id>/clase/nueva/", views.admin_lesson_create, name="admin_lesson_create"),
+    path("admin-panel/contenido/clase/<int:lesson_id>/editar/", views.admin_lesson_edit, name="admin_lesson_edit"),
+    path("admin-panel/contenido/clase/<int:lesson_id>/publicar/", views.admin_lesson_toggle_publish, name="admin_lesson_toggle_publish"),
+    path("admin-panel/contenido/clase/<int:lesson_id>/eliminar/", views.admin_lesson_delete, name="admin_lesson_delete"),
+    path("admin-panel/contenido/clase/<int:lesson_id>/recurso/nuevo/", views.admin_resource_create, name="admin_resource_create"),
+    path("admin-panel/contenido/recurso/<int:resource_id>/eliminar/", views.admin_resource_delete, name="admin_resource_delete"),
 ]
